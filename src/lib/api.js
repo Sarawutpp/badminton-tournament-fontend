@@ -1,7 +1,5 @@
 // src/lib/api.js
-// Frontend API helper used by Admin/Public pages
-
-const BASE = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || ""; // e.g. http://127.0.0.1:5000 or http://119.59.102.134
+const BASE = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || ""; // e.g. http://127.0.0.1:5000
 
 async function request(path, opts = {}) {
   const res = await fetch(`${BASE}${path}`, {
@@ -13,9 +11,7 @@ async function request(path, opts = {}) {
     const txt = await res.text().catch(() => "");
     try {
       const j = JSON.parse(txt || "{}");
-      throw new Error(
-        j.message || j.error || `${res.status} ${res.statusText}`
-      );
+      throw new Error(j.message || j.error || `${res.status} ${res.statusText}`);
     } catch {
       throw new Error(txt || `${res.status} ${res.statusText}`);
     }
@@ -29,6 +25,9 @@ export const API = {
   async listTeams() {
     return request("/api/teams");
   },
+  async listTeamsByHand(handLevel) {
+    return request(`/api/teams?handLevel=${encodeURIComponent(handLevel)}`);
+  },
   async createTeam(data) {
     return request("/api/teams", {
       method: "POST",
@@ -38,7 +37,7 @@ export const API = {
 
   // ------- Matches -------
   async listAllMatches() {
-    return request("/api/matches"); // expects your backend to support GET /api/matches
+    return request("/api/matches");
   },
   async updateMatch(id, payload) {
     return request(`/api/matches/${id}`, {
@@ -47,9 +46,15 @@ export const API = {
     });
   },
 
-  // ------- Tournaments utils (optional) -------
+  // ------- Tournaments -------
   async generateGroups(payload) {
     return request("/api/tournaments/generate-groups", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+  async manualGroupAndGenerate(payload) {
+    return request("/api/tournaments/generate-groups/manual", {
       method: "POST",
       body: JSON.stringify(payload),
     });
@@ -61,18 +66,15 @@ export const API = {
     });
   },
 
-  // ------- Derived helpers (computed on FE so it works with current backend) -------
-  // Build group standings per hand level from /api/teams
+  // ------- Derived helpers (ถ้าต้องใช้ต่อ) -------
   async listGroups() {
     const teams = await request("/api/teams");
     const byLevel = {};
     for (const t of teams) {
       const level = t.handLevel || "UNKNOWN";
-      if (!byLevel[level])
-        byLevel[level] = { level, standings: [], matches: [] };
+      if (!byLevel[level]) byLevel[level] = { level, standings: [], matches: [] };
       byLevel[level].standings.push(t);
     }
-    // sort standings (points desc, diff desc)
     Object.values(byLevel).forEach((g) => {
       g.standings.sort(
         (a, b) =>
@@ -83,26 +85,19 @@ export const API = {
     return Object.values(byLevel);
   },
 
-  // Group-stage matches grouped by hand level
   async listGroupMatches() {
-    const matches = await request("/api/matches"); // fallback to all matches then filter
+    const matches = await request("/api/matches");
     const byLevel = {};
     for (const m of matches) {
       const isGroup = /group/i.test(m.round || "group");
       if (!isGroup) continue;
-      const level =
-        m.handLevel ||
-        m.level ||
-        m.team1?.handLevel ||
-        m.team2?.handLevel ||
-        "UNKNOWN";
+      const level = m.team1?.handLevel || m.team2?.handLevel || "UNKNOWN";
       if (!byLevel[level]) byLevel[level] = { level, matches: [] };
       byLevel[level].matches.push(m);
     }
     return Object.values(byLevel);
   },
 
-  // Knockout matches grouped by round name
   async listKnockout() {
     const matches = await request("/api/matches");
     const byRound = {};
@@ -115,13 +110,23 @@ export const API = {
     }
     const order = ["Round of 16", "Quarter-final", "Semifinal", "Final"];
     return Object.values(byRound).sort(
-      (a, b) =>
-        (order.indexOf(a.name) + 1 || 99) - (order.indexOf(b.name) + 1 || 99)
+      (a, b) => (order.indexOf(a.name) + 1 || 99) - (order.indexOf(b.name) + 1 || 99)
     );
+  },
+
+  // ------- Players -------
+  async listPlayers() {
+    return request("/api/players");
+  },
+  async createPlayer(data) {
+    return request("/api/players", {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
   },
 };
 
-// Helper: get team display name robustly
+// helper
 export function teamName(t) {
   if (!t) return "-";
   if (typeof t === "string") return t;
