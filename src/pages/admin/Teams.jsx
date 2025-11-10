@@ -1,5 +1,8 @@
+// src/pages/admin/Teams.jsx
+// (เวอร์ชันที่แก้ปุ่ม submit แล้ว)
+
 import React from "react";
-import { API } from "../../lib/api";
+import { API } from "@/lib/api.js";
 
 const genCode = (prefix, extra = "") =>
   `${prefix}${extra ? "-" + extra : ""}-${Math.random()
@@ -7,7 +10,72 @@ const genCode = (prefix, extra = "") =>
     .slice(2, 8)
     .toUpperCase()}`;
 
-const HAND_LEVEL_OPTIONS = ["N", "NB", "Baby", "BG-", "Mix"]; // ปรับ/เพิ่มตามจริงได้
+const HAND_LEVEL_OPTIONS = [
+  "Baby",
+  "BG-",
+  "BG(Mix)",
+  "BG(Men)",
+  "N",
+  "S",
+  "Single NB",
+  "Single N",
+];
+
+// --- Helper Components ---
+function Button({
+  children,
+  onClick,
+  disabled,
+  variant = "primary",
+  type = "button",
+}) {
+  const base =
+    "px-4 py-2 rounded-lg font-semibold text-sm shadow-sm transition-colors disabled:opacity-50";
+  const styles = {
+    primary: "bg-indigo-600 text-white hover:bg-indigo-700",
+    outline:
+      "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50",
+  };
+  return (
+    <button
+      type={type}
+      className={`${base} ${styles[variant]}`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
+}
+
+function FormLabel({ children }) {
+  return (
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {children}
+    </label>
+  );
+}
+
+function Input({ ...props }) {
+  return (
+    <input
+      className="block w-full border border-gray-300 rounded-md shadow-sm text-base px-3 py-2 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+      {...props}
+    />
+  );
+}
+
+function Select({ children, ...props }) {
+  return (
+    <select
+      className="block w-full border border-gray-300 rounded-md shadow-sm text-base px-3 py-2 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50"
+      {...props}
+    >
+      {children}
+    </select>
+  );
+}
+// ---------------------------------
 
 export default function TeamsPage() {
   const [players, setPlayers] = React.useState([]);
@@ -16,11 +84,10 @@ export default function TeamsPage() {
   const [hand, setHand] = React.useState("ALL");
   const [err, setErr] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
-
   const [form, setForm] = React.useState({
     teamCode: "",
-    teamName: "",            // 👈 ชื่อทีม
-    competitionType: "Doubles", // Singles | Doubles
+    teamName: "",
+    competitionType: "Doubles",
     handLevel: "",
     players: [],
     managerName: "",
@@ -28,11 +95,15 @@ export default function TeamsPage() {
     lineId: "",
   });
 
+  // โหลดข้อมูลผู้เล่น + ทีม
   React.useEffect(() => {
     (async () => {
       try {
         setErr("");
-        const [ps, ts] = await Promise.all([API.listPlayers(), API.listTeams()]);
+        const [ps, ts] = await Promise.all([
+          API.listPlayers(),
+          API.listTeams(),
+        ]);
         setPlayers(ps);
         setTeams(ts);
       } catch (e) {
@@ -51,12 +122,18 @@ export default function TeamsPage() {
 
   const filtered = React.useMemo(() => {
     let list = teams || [];
-    if (hand !== "ALL") list = list.filter((t) => String(t.handLevel).toUpperCase() === hand.toUpperCase());
+    if (hand !== "ALL")
+      list = list.filter(
+        (t) =>
+          String(t.handLevel).toUpperCase() === hand.toUpperCase()
+      );
     if (q) {
       const kw = q.toLowerCase();
       list = list.filter((t) =>
         `${t.teamCode || ""} ${t.teamName || ""} ${t.players
-          .map((id) => (playerMap[id] ? playerMap[id].fullName : ""))
+          .map((id) =>
+            playerMap[id] ? playerMap[id].fullName : ""
+          )
           .join(" ")}`
           .toLowerCase()
           .includes(kw)
@@ -82,7 +159,6 @@ export default function TeamsPage() {
 
   async function onSubmit(e) {
     e.preventDefault();
-
     if (!form.teamName || !form.teamName.trim()) {
       setErr("กรอกชื่อทีม");
       return;
@@ -99,14 +175,17 @@ export default function TeamsPage() {
       setErr("Singles ต้องเลือกผู้เล่น 1 คน");
       return;
     }
-    if (form.competitionType === "Doubles" && (form.players.length < 1 || form.players.length > 2)) {
+    if (
+      form.competitionType === "Doubles" &&
+      (form.players.length < 1 || form.players.length > 2)
+    ) {
       setErr("Doubles เลือก 1–2 คน");
       return;
     }
 
     const payload = {
-      teamCode: form.teamCode || undefined, // ว่างได้ → backend gen ให้
-      teamName: form.teamName.trim(),       // 👈 ส่งชื่อทีม
+      teamCode: form.teamCode || undefined,
+      teamName: form.teamName.trim(),
       competitionType: form.competitionType,
       handLevel: form.handLevel,
       players: form.players,
@@ -137,64 +216,62 @@ export default function TeamsPage() {
     }
   }
 
+  // ---------- UI ----------
   return (
-    <div className="card-body" style={{ display: "grid", gap: 12 }}>
-      <h2 className="section-title">Teams</h2>
+    <div className="flex flex-col gap-4">
+      <h2 className="text-2xl font-bold">Teams</h2>
 
-      {/* Inline form */}
-      <form onSubmit={onSubmit} className="card" style={{ padding: 12 }}>
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "160px 1fr 160px 160px 1fr",
-            gap: 8,
-          }}
-        >
+      {/* Form */}
+      <form onSubmit={onSubmit} className="bg-white rounded-xl shadow border p-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
           <div>
-            <label>Team ID</label>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                placeholder="เว้นว่างให้ระบบสร้าง"
+            <FormLabel>Team ID</FormLabel>
+            <div className="flex gap-2">
+              <Input
+                placeholder="เว้นว่าง..."
                 value={form.teamCode}
-                onChange={(e) => setForm({ ...form, teamCode: e.target.value })}
+                onChange={(e) =>
+                  setForm({ ...form, teamCode: e.target.value })
+                }
               />
-              <button type="button" className="btn-outline" onClick={onGenerate}>
-                Generate
-              </button>
+              <Button variant="outline" onClick={onGenerate}>
+                Gen
+              </Button>
             </div>
           </div>
-
-          <div>
-            <label>ชื่อทีม</label>
-            <input
+          <div className="lg:col-span-2">
+            <FormLabel>ชื่อทีม</FormLabel>
+            <Input
               value={form.teamName}
-              onChange={(e) => setForm({ ...form, teamName: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, teamName: e.target.value })
+              }
               required
             />
           </div>
-
           <div>
-            <label>ประเภทการแข่งขัน</label>
-            <select
+            <FormLabel>ประเภทการแข่งขัน</FormLabel>
+            <Select
               value={form.competitionType}
               onChange={(e) =>
                 setForm({
                   ...form,
                   competitionType: e.target.value,
-                  players: [], // เปลี่ยนประเภทแล้วเคลียร์ตัวเลือก
+                  players: [],
                 })
               }
             >
               <option value="Singles">เดี่ยว (Singles)</option>
               <option value="Doubles">คู่ (Doubles)</option>
-            </select>
+            </Select>
           </div>
-
           <div>
-            <label>ประเภทมือ</label>
-            <select
+            <FormLabel>ประเภทมือ</FormLabel>
+            <Select
               value={form.handLevel}
-              onChange={(e) => setForm({ ...form, handLevel: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, handLevel: e.target.value })
+              }
             >
               <option value="">เลือก</option>
               {HAND_LEVEL_OPTIONS.map((h) => (
@@ -202,88 +279,103 @@ export default function TeamsPage() {
                   {h}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
-
-          <div>
-            <label>ผู้จัดการทีม</label>
-            <input
+          <div className="lg:col-span-2">
+            <FormLabel>ผู้จัดการทีม</FormLabel>
+            <Input
               value={form.managerName}
-              onChange={(e) => setForm({ ...form, managerName: e.target.value })}
+              onChange={(e) =>
+                setForm({ ...form, managerName: e.target.value })
+              }
             />
           </div>
-
           <div>
-            <label>เบอร์โทร</label>
-            <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+            <FormLabel>เบอร์โทร</FormLabel>
+            <Input
+              value={form.phone}
+              onChange={(e) =>
+                setForm({ ...form, phone: e.target.value })
+              }
+            />
           </div>
-
-          <div>
-            <label>Line ID</label>
-            <input value={form.lineId} onChange={(e) => setForm({ ...form, lineId: e.target.value })} />
+          <div className="lg:col-span-2">
+            <FormLabel>Line ID</FormLabel>
+            <Input
+              value={form.lineId}
+              onChange={(e) =>
+                setForm({ ...form, lineId: e.target.value })
+              }
+            />
           </div>
         </div>
 
-        <div style={{ marginTop: 8 }}>
-          <div className="text-sm" style={{ marginBottom: 6 }}>
-            เลือกผู้เล่น {form.competitionType === "Doubles" ? "(สูงสุด 2)" : "(1 คน)"}
-          </div>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
-              gap: 8,
-              maxHeight: 160,
-              overflow: "auto",
-              padding: 8,
-              border: "1px solid var(--border)",
-              borderRadius: 8,
-            }}
-          >
+        <div className="mt-4">
+          <FormLabel>
+            เลือกผู้เล่น{" "}
+            {form.competitionType === "Doubles"
+              ? "(สูงสุด 2)"
+              : "(1 คน)"}
+          </FormLabel>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-3 border rounded-md bg-gray-50">
             {(players || []).map((p) => {
-              const checked = form.players.indexOf(p._id) !== -1;
+              const checked = form.players.includes(p._id);
               return (
                 <label
                   key={p._id}
-                  className={"flex items-center gap-8 rounded-md border p-8 text-sm" + (checked ? " is-selected" : "")}
+                  className={`flex items-center gap-3 rounded-md border p-2 text-sm cursor-pointer ${
+                    checked
+                      ? "bg-indigo-100 border-indigo-300 ring-1 ring-indigo-300"
+                      : "bg-white hover:bg-gray-100"
+                  }`}
                 >
                   <input
                     type="checkbox"
                     checked={checked}
                     onChange={() => togglePlayer(p._id)}
                   />
-                  <span style={{ fontWeight: 600 }} className="truncate">
+                  <span className="font-medium truncate">
                     {p.fullName}
                   </span>
-                  {p.nickname ? <span className="muted">({p.nickname})</span> : null}
-                  {p.playerCode ? <span className="badge" style={{ marginLeft: "auto" }}>{p.playerCode}</span> : null}
+                  {p.nickname ? (
+                    <span className="text-gray-500">
+                      ({p.nickname})
+                    </span>
+                  ) : null}
                 </label>
               );
             })}
           </div>
         </div>
 
-        <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 8 }}>
-          <button disabled={submitting}>{submitting ? "กำลังบันทึก…" : "สร้างทีม"}</button>
-          {err && <span style={{ color: "crimson" }}>{err}</span>}
+        <div className="mt-4 flex items-center gap-4">
+          {/* ✅ เพิ่ม type="submit" ตรงนี้ */}
+          <Button variant="primary" type="submit" disabled={submitting}>
+            {submitting ? "กำลังบันทึก…" : "สร้างทีม"}
+          </Button>
+          {err && <span className="text-sm text-red-600">{err}</span>}
         </div>
       </form>
 
       {/* Toolbar */}
-      <div style={{ display: "flex", gap: 8, justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+      <div className="flex flex-col md:flex-row gap-4 justify-between items-center mt-4">
+        <div className="flex gap-2 flex-wrap">
           {["ALL", ...HAND_LEVEL_OPTIONS].map((h) => (
             <button
               key={h}
-              className={"badge" + (hand === h ? " is-primary" : "")}
+              className={`px-3 py-1 rounded-full text-xs font-medium ${
+                hand === h
+                  ? "bg-indigo-600 text-white"
+                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+              }`}
               onClick={() => setHand(h)}
             >
               {h}
             </button>
           ))}
         </div>
-        <input
-          style={{ maxWidth: 260 }}
+        <Input
+          className="max-w-xs"
           placeholder="ค้นหา (ทีม/ผู้เล่น/ID)"
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -291,27 +383,41 @@ export default function TeamsPage() {
       </div>
 
       {/* Table */}
-      <div className="card" style={{ padding: 0 }}>
-        <table className="table" style={{ width: "100%" }}>
-          <thead>
+      <div className="bg-white rounded-xl shadow border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50">
             <tr>
-              <th style={{ width: 120 }}>ID</th>
-              <th>ชื่อทีม</th>
-              <th style={{ textAlign: "center" }}>ประเภท</th>
-              <th style={{ textAlign: "center" }}>มือ</th>
-              <th>ผู้เล่น</th>
+              <th className="p-3 text-left w-32">ID</th>
+              <th className="p-3 text-left">ชื่อทีม</th>
+              <th className="p-3 text-center">ประเภท</th>
+              <th className="p-3 text-center">มือ</th>
+              <th className="p-3 text-left">ผู้เล่น</th>
             </tr>
           </thead>
           <tbody>
             {(filtered || []).map((t) => (
-              <tr key={t._id}>
-                <td><span className="badge">{t.teamCode || "-"}</span></td>
-                <td>{t.teamName || "-"}</td>
-                <td style={{ textAlign: "center" }}>{t.competitionType}</td>
-                <td style={{ textAlign: "center" }}><span className="badge is-dark">{String(t.handLevel)}</span></td>
-                <td className="muted">
+              <tr key={t._id} className="border-t">
+                <td className="p-3">
+                  <span className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                    {t.teamCode || "-"}
+                  </span>
+                </td>
+                <td className="p-3 font-medium">
+                  {t.teamName || "-"}
+                </td>
+                <td className="p-3 text-center">
+                  {t.competitionType}
+                </td>
+                <td className="p-3 text-center">
+                  <span className="px-2.5 py-0.5 bg-gray-800 text-white rounded-full text-xs font-medium">
+                    {String(t.handLevel)}
+                  </span>
+                </td>
+                <td className="p-3 text-gray-500">
                   {(t.players || [])
-                    .map((id) => (playerMap[id] ? playerMap[id].fullName : ""))
+                    .map((id) =>
+                      playerMap[id] ? playerMap[id].fullName : ""
+                    )
                     .filter(Boolean)
                     .join(", ")}
                 </td>
@@ -319,7 +425,22 @@ export default function TeamsPage() {
             ))}
             {!teams && (
               <tr>
-                <td colSpan={5} style={{ padding: 12 }}>กำลังโหลด…</td>
+                <td
+                  colSpan={5}
+                  className="p-4 text-center text-gray-500"
+                >
+                  กำลังโหลด…
+                </td>
+              </tr>
+            )}
+            {teams && filtered.length === 0 && (
+              <tr>
+                <td
+                  colSpan={5}
+                  className="p-4 text-center text-gray-500"
+                >
+                  ไม่พบข้อมูล
+                </td>
               </tr>
             )}
           </tbody>
