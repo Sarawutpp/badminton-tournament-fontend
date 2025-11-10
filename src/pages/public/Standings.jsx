@@ -1,20 +1,13 @@
 // src/pages/public/Standings.jsx
-// (เวอร์ชันที่แปลเป็น Tailwind CSS 100% แล้ว)
-console.log("MOUNT: StandingsTabs v2 (Tailwind Fixed)");
 import React from "react";
-import { API } from "@/lib/api.js"; // <-- แก้ไข path ให้สอดคล้อง
-import { HAND_LEVEL_OPTIONS } from "@/lib/types.js"; // <-- 1. Import มาตรฐาน
+import { API } from "@/lib/api.js";
+import { HAND_LEVEL_OPTIONS } from "@/lib/types.js";
 
-// (ลบ Array 'LEVELS' ที่ hard-code ทิ้ง)
-
-// --- ตรวจหน้าจอมือถือ (<768px) ด้วย matchMedia เพื่อเลือกเรนเดอร์แบบเดียว ---
 function useIsMobile() {
   const get = () =>
     typeof window !== "undefined" &&
     window.matchMedia("(max-width: 767.98px)").matches;
-
   const [isMobile, setIsMobile] = React.useState(get());
-
   React.useEffect(() => {
     const mq = window.matchMedia("(max-width: 767.98px)");
     const onChange = (e) => setIsMobile(e.matches);
@@ -25,12 +18,10 @@ function useIsMobile() {
       else mq.removeListener(onChange);
     };
   }, []);
-
   return isMobile;
 }
 
 export default function StandingsPage() {
-  // 2. ใช้ HAND_LEVEL_OPTIONS[0] เป็นค่าเริ่มต้น
   const [active, setActive] = React.useState(HAND_LEVEL_OPTIONS[0]);
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState("");
@@ -42,17 +33,57 @@ export default function StandingsPage() {
     setErr("");
     try {
       const res = await API.getStandings(level);
+
+      const norm = (s) =>
+        String(s || "")
+          .toUpperCase()
+          .replace(/\s+/g, "")
+          .replace(/[()]/g, "");
+
+      const pickLevel = (payload) => {
+        if (Array.isArray(payload)) {
+          return payload.find((x) => norm(x?.level) === norm(level));
+        }
+        if (payload && typeof payload === "object") return payload;
+        return null;
+      };
+
+      let item = pickLevel(res);
+
+      // Fallback: ถ้าไม่ได้ข้อมูลที่ต้องการ ให้ลองจัดจากรายชื่อทีม
+      if (!item || !Array.isArray(item.groups) || item.groups.length === 0) {
+        try {
+          const all = await API.listGroups();
+          if (Array.isArray(all)) item = all.find((x) => norm(x?.level) === norm(level));
+        } catch (_) {}
+      }
+
+      const toDisplayName = (p) => {
+        if (p == null) return "";
+        if (typeof p === "string") return p;
+        return (
+          p.nickname || p.fullName || p.name || p.playerCode || p._id || ""
+        );
+      };
+
       const cleaned = {
-        level: res?.level ?? level,
-        groups: Array.isArray(res?.groups) ? res.groups : [],
+        level: item?.level ?? level,
+        groups: Array.isArray(item?.groups) ? item.groups : [],
       };
       cleaned.groups = cleaned.groups.map((g) => ({
         groupName: g.groupName ?? "-",
         teams: (g.teams ?? []).map((t) => ({
           _id: t._id ?? `${Math.random()}`,
-          idCode: t.idCode ?? "",
-          teamName: t.teamName ?? "",
-          players: t.players ?? ["", ""],
+          idCode: t.idCode ?? t.teamCode ?? "",
+          teamName:
+            typeof t.teamName === "string" && t.teamName
+              ? t.teamName
+              : [toDisplayName((t.players || [])[0]), toDisplayName((t.players || [])[1])]
+                  .filter(Boolean)
+                  .join("/") || "",
+          players: Array.isArray(t.players)
+            ? t.players.map(toDisplayName)
+            : ["", ""],
           matchesPlayed: t.matchesPlayed ?? 0,
           wins: t.wins ?? 0,
           losses: t.losses ?? 0,
@@ -60,13 +91,13 @@ export default function StandingsPage() {
           scoreFor: t.scoreFor ?? 0,
           scoreAgainst: t.scoreAgainst ?? 0,
           scoreDiff: t.scoreDiff ?? (t.scoreFor ?? 0) - (t.scoreAgainst ?? 0),
-          matchScores: t.matchScores ?? [], // [m1, m2, m3]
+          matchScores: t.matchScores ?? [],
         })),
       }));
       setData(cleaned);
     } catch (e) {
       console.error(e);
-      setErr(e?.message || "โหลดข้อมูลไม่สำเร็จ");
+      setErr(e?.message || "โหลดข้อมูลล้มเหลว");
       setData({ level, groups: [] });
     } finally {
       setLoading(false);
@@ -78,7 +109,6 @@ export default function StandingsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
 
-  // Component ปุ่ม Tab (ถูกต้องแล้ว)
   const Tab = ({ label, isActive, onClick }) => (
     <button
       onClick={onClick}
@@ -94,7 +124,7 @@ export default function StandingsPage() {
   );
 
   return (
-    <div className="px-2 md:px-6 py-6"> {/* ลด padding ซ้ายขวาบนมือถือ */}
+    <div className="px-2 md:px-6 py-6">
       <div className="mb-4">
         <h2 className="text-3xl font-extrabold tracking-tight">
           ตารางคะแนน (รอบแบ่งกลุ่ม)
@@ -103,7 +133,6 @@ export default function StandingsPage() {
 
       <div className="mb-6">
         <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
-          {/* 3. วนลูปจาก HAND_LEVEL_OPTIONS */}
           {HAND_LEVEL_OPTIONS.map((lv) => (
             <Tab
               key={lv}
@@ -126,10 +155,10 @@ export default function StandingsPage() {
       </div>
 
       {loading && !data ? (
-        <div className="text-slate-500">กำลังโหลดข้อมูล...</div>
+        <div className="text-slate-500">กำลังโหลด...</div>
       ) : !data || !data.groups?.length ? (
         <div className="text-slate-500">
-          ยังไม่มีข้อมูลกลุ่มในระดับมือ {active}
+          ยังไม่มีกลุ่มในระดับมือ {active}
         </div>
       ) : (
         <div className="space-y-10">
@@ -147,40 +176,31 @@ export default function StandingsPage() {
   );
 }
 
-// ---------- [แก้ไข] ใช้สไตล์ Tailwind "card" ----------
 function GroupBlock({ level, group, isMobile }) {
   return (
-    // "card" -> ใช้ Tailwind card
     <div className="bg-white rounded-xl shadow border overflow-hidden">
-      {/* Header card */}
       <div className="px-4 py-3 border-b flex items-center gap-2 bg-gray-50/50">
-        {/* "badge" -> ใช้ Tailwind badge */}
         <span className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-          ระดับมือ: {level}
+          ระดับ: {level}
         </span>
-        <h3 className="text-lg font-semibold">
-          — กลุ่ม {group.groupName}
-        </h3>
+        <h3 className="text-lg font-semibold">กลุ่ม {group.groupName}</h3>
       </div>
-
       {isMobile ? <CardsMobile group={group} /> : <TableDesktop group={group} />}
     </div>
   );
 }
 
-/* ---------- [แก้ไข] Desktop Table (ใช้สไตล์ Tailwind) ---------- */
 function TableDesktop({ group }) {
   return (
     <div className="overflow-x-auto">
-      {/* "table" -> ใช้ Tailwind table */}
       <table className="w-full text-sm">
         <thead className="bg-gray-50 text-gray-600">
           <tr>
             <th className="px-3 py-2 text-center w-16">อันดับ</th>
             <th className="px-3 py-2 text-left w-32">ID Code</th>
-            <th className="px-3 py-2 text-left">Team</th>
-            <th className="px-3 py-2 text-left">Player 1</th>
-            <th className="px-3 py-2 text-left">Player 2</th>
+            <th className="px-3 py-2 text-left">ทีม</th>
+            <th className="px-3 py-2 text-left">ผู้เล่น 1</th>
+            <th className="px-3 py-2 text-left">ผู้เล่น 2</th>
             <th className="px-3 py-2 text-center w-20">Match1</th>
             <th className="px-3 py-2 text-center w-20">Match2</th>
             <th className="px-3 py-2 text-center w-20">Match3</th>
@@ -193,7 +213,6 @@ function TableDesktop({ group }) {
             <th className="px-3 py-2 text-center w-20">ผลต่าง</th>
           </tr>
         </thead>
-
         <tbody>
           {group.teams.map((t, idx) => {
             const sd = t.scoreDiff ?? (t.scoreFor ?? 0) - (t.scoreAgainst ?? 0);
@@ -204,38 +223,23 @@ function TableDesktop({ group }) {
                 <td className="px-3 py-2 font-medium">{t.teamName}</td>
                 <td className="px-3 py-2 text-gray-600">{(t.players || [])[0] || ""}</td>
                 <td className="px-3 py-2 text-gray-600">{(t.players || [])[1] || ""}</td>
-                <td className="px-3 py-2 text-center">
-                  {(t.matchesPlayed ?? 0) >= 1 ? t.matchScores?.[0] ?? "" : ""}
-                </td>
-                <td className="px-3 py-2 text-center">
-                  {(t.matchesPlayed ?? 0) >= 2 ? t.matchScores?.[1] ?? "" : ""}
-                </td>
-                <td className="px-3 py-2 text-center">
-                  {(t.matchesPlayed ?? 0) >= 3 ? t.matchScores?.[2] ?? "" : ""}
-                </td>
+                <td className="px-3 py-2 text-center">{(t.matchesPlayed ?? 0) >= 1 ? t.matchScores?.[0] ?? "" : ""}</td>
+                <td className="px-3 py-2 text-center">{(t.matchesPlayed ?? 0) >= 2 ? t.matchScores?.[1] ?? "" : ""}</td>
+                <td className="px-3 py-2 text-center">{(t.matchesPlayed ?? 0) >= 3 ? t.matchScores?.[2] ?? "" : ""}</td>
                 <td className="px-3 py-2 text-center">{t.matchesPlayed ?? 0}</td>
                 <td className="px-3 py-2 text-center">{t.wins ?? 0}</td>
                 <td className="px-3 py-2 text-center">{t.losses ?? 0}</td>
-                <td className="px-3 py-2 text-center font-bold text-indigo-700">
-                  {t.points ?? 0}
-                </td>
+                <td className="px-3 py-2 text-center font-bold text-indigo-700">{t.points ?? 0}</td>
                 <td className="px-3 py-2 text-center">{t.scoreFor ?? 0}</td>
                 <td className="px-3 py-2 text-center">{t.scoreAgainst ?? 0}</td>
-                <td
-                  className={`px-3 py-2 text-center font-medium ${
-                    sd >= 0 ? "text-green-600" : "text-red-600"
-                  }`}
-                >
-                  {sd}
-                </td>
+                <td className={`px-3 py-2 text-center font-medium ${sd >= 0 ? "text-green-600" : "text-red-600"}`}>{sd}</td>
               </tr>
             );
           })}
-
           {group.teams.length === 0 && (
             <tr>
               <td colSpan={15} className="px-3 py-6 text-center text-slate-500">
-                ยังไม่มีทีมในกลุ่มนี้
+                ยังไม่มีกลุ่มในระดับนี้
               </td>
             </tr>
           )}
@@ -245,14 +249,11 @@ function TableDesktop({ group }) {
   );
 }
 
-/* ---------- Mobile Cards (<md) (ถูกต้องแล้ว) ---------- */
 function CardsMobile({ group }) {
   return (
     <div className="divide-y divide-slate-100">
       {group.teams.length === 0 && (
-        <div className="px-4 py-6 text-slate-500 text-center">
-          ยังไม่มีทีมในกลุ่มนี้
-        </div>
+        <div className="px-4 py-6 text-slate-500 text-center">ยังไม่มีกลุ่มในระดับนี้</div>
       )}
       {group.teams.map((t, idx) => {
         const sd = t.scoreDiff ?? (t.scoreFor ?? 0) - (t.scoreAgainst ?? 0);
@@ -278,11 +279,11 @@ function CardsMobile({ group }) {
 
             <div className="mt-3 grid grid-cols-2 gap-2">
               <div>
-                <div className="text-xs text-slate-500">Player 1</div>
+                <div className="text-xs text-slate-500">ผู้เล่น 1</div>
                 <div className="text-sm">{(t.players || [])[0] || "-"}</div>
               </div>
               <div>
-                <div className="text-xs text-slate-500">Player 2</div>
+                <div className="text-xs text-slate-500">ผู้เล่น 2</div>
                 <div className="text-sm">{(t.players || [])[1] || "-"}</div>
               </div>
             </div>
@@ -296,11 +297,7 @@ function CardsMobile({ group }) {
             <div className="mt-3 grid grid-cols-3 gap-2">
               <MiniBox label="ได้" value={t.scoreFor ?? 0} />
               <MiniBox label="เสีย" value={t.scoreAgainst ?? 0} />
-              <MiniBox
-                label="ผลต่าง"
-                value={sd}
-                color={sd >= 0 ? "text-green-600" : "text-red-600"}
-              />
+              <MiniBox label="ผลต่าง" value={sd} color={sd >= 0 ? "text-green-600" : "text-red-600"} />
             </div>
 
             <div className="mt-3 grid grid-cols-3 gap-2">
@@ -323,8 +320,3 @@ function MiniBox({ label, value, color = "text-slate-900" }) {
     </div>
   );
 }
-
-/* tip: ถ้าจะซ่อน scrollbar ของแท็บให้เนียน ๆ
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-*/

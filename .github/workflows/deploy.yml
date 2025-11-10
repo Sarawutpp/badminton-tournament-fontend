@@ -1,0 +1,67 @@
+name: Deploy Frontend to 119.59.102.134
+
+on:
+  push:
+    branches: [ main ]     # ถ้า FE ใช้ branch อื่น เช่น master, dev ให้เปลี่ยนตรงนี้
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend (Vite)
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}
+        run: |
+          echo "VITE_API_URL=${VITE_API_URL}" > .env.production
+          npm run build
+
+      - name: Prepare target folder
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script_stop: true
+          script: |
+            BASE=/var/www/moodeng-fe
+            mkdir -p ${BASE}/releases/${GITHUB_SHA}
+
+      - name: Upload dist files
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          source: "dist/*"
+          target: "/var/www/moodeng-fe/releases/${{ github.sha }}/"
+
+      - name: Activate release (switch symlink)
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_KEY }}
+          port: ${{ secrets.VPS_PORT }}
+          script_stop: true
+          script: |
+            BASE=/var/www/moodeng-fe
+            REL=${BASE}/releases/${GITHUB_SHA}
+            ln -sfn ${REL} ${BASE}/current
+            sudo nginx -t && sudo systemctl reload nginx
+            echo "Activated -> ${REL}"
