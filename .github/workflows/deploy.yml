@@ -54,15 +54,15 @@ jobs:
       - name: Activate release (switch symlink)
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_KEY }}
-          port: ${{ secrets.VPS_PORT }}
-          script_stop: true
-          script: |
-            BASE=/var/www/moodeng-fe
-            REL=${BASE}/releases/${GITHUB_SHA}
-            ln -sfn ${REL} ${BASE}/current
-            sudo /usr/sbin/nginx -t
-            sudo /usr/sbin/nginx -s reload
-            echo "Activated -> ${REL}"
+         host: ${{ secrets.VPS_HOST }}
+         username: ${{ secrets.VPS_USER }}
+         key: ${{ secrets.VPS_KEY }}
+         port: ${{ secrets.VPS_PORT }}
+         script_stop: true
+         script: |
+          BASE=/var/www/moodeng-fe
+          REL=${BASE}/releases/${GITHUB_SHA}
+          ln -sfnT ${REL} ${BASE}/current   # <- ใส่ -T เพื่อแทนที่ปลายทาง
+          sudo /usr/sbin/nginx -t
+          sudo /usr/sbin/nginx -s reload
+          echo "Activated -> ${REL}"
