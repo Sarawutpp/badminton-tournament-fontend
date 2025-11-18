@@ -1,149 +1,227 @@
 // src/pages/admin/Players.jsx
-// (เวอร์ชันที่แปลเป็น Tailwind CSS แล้ว)
 
-import React from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import { API } from "@/lib/api.js";
 
-const genCode = (prefix) => `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
+// helper สร้างรหัส player
+const genCode = (prefix) =>
+  `${prefix}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
-// --- Helper Components (ใช้ซ้ำ) ---
-function Button({ children, onClick, disabled, variant = "primary" }) {
-  const base = "px-4 py-2 rounded-lg font-semibold text-sm shadow-sm transition-colors disabled:opacity-50";
+// ---- UI helpers ----
+function Button({
+  children,
+  onClick,
+  disabled,
+  variant = "primary",
+  type = "button",
+}) {
+  const base =
+    "px-4 py-2 rounded-lg font-semibold text-sm shadow-sm transition-colors disabled:opacity-50";
   const styles = {
     primary: "bg-indigo-600 text-white hover:bg-indigo-700",
-    outline: "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50",
+    outline:
+      "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50",
   };
-  return (<button type="button" className={`${base} ${styles[variant]}`} onClick={onClick} disabled={disabled}>{children}</button>);
+  return (
+    <button
+      type={type}
+      className={`${base} ${styles[variant]}`}
+      onClick={onClick}
+      disabled={disabled}
+    >
+      {children}
+    </button>
+  );
 }
+
 function FormLabel({ children }) {
-  return <label className="block text-sm font-medium text-gray-700 mb-1">{children}</label>;
+  return (
+    <label className="block text-sm font-medium text-gray-700 mb-1">
+      {children}
+    </label>
+  );
 }
-// ✅ โค้ดใหม่ (มีเส้นขอบ)
 
-function Input({ ...props }) {
-  return <input className="block w-full border border-gray-300 rounded-md shadow-sm text-base px-3 py-2 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" {...props} />;
+function Input(props) {
+  return (
+    <input
+      {...props}
+      className={`block w-full border border-gray-300 rounded-md shadow-sm text-base px-3 py-2 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 ${
+        props.className || ""
+      }`}
+    />
+  );
 }
 
-function Select({ children, ...props }) {
-  return <select className="block w-full border border-gray-300 rounded-md shadow-sm text-base px-3 py-2 focus:border-indigo-500 focus:ring focus:ring-indigo-200 focus:ring-opacity-50" {...props}>{children}</select>;
-}
-// ---------------------------------
-
+// ---- main page ----
 export default function PlayersPage() {
-  const [players, setPlayers] = React.useState(null);
-  const [q, setQ] = React.useState("");
-  const [err, setErr] = React.useState("");
-  const [submitting, setSubmitting] = React.useState(false);
+  const [players, setPlayers] = useState(null);
+  const [q, setQ] = useState("");
+  const [err, setErr] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const [form, setForm] = React.useState({
-    playerCode: "", fullName: "", nickname: "", age: "", lastCompetition: "", photoUrl: "",
+  const [form, setForm] = useState({
+    playerCode: "",
+    fullName: "",
+    nickname: "",
+    age: "",
+    lastCompetition: "",
   });
 
-  // (โค้ด Logic ... ไม่เปลี่ยนแปลง)
-  const refresh = React.useCallback(async () => {
+  const loadPlayers = useCallback(async () => {
     try {
       setErr("");
       const list = await API.listPlayers();
-      setPlayers(list);
-    } catch (e) { setErr(e && e.message ? e.message : "โหลดข้อมูลไม่สำเร็จ"); }
+      setPlayers(list || []);
+    } catch (e) {
+      console.error(e);
+      setErr(e?.message || "โหลดข้อมูลผู้เล่นไม่สำเร็จ");
+    }
   }, []);
-  React.useEffect(() => { refresh(); }, [refresh]);
-  const filtered = React.useMemo(() => {
-    const list = players || [];
-    if (!q) return list;
+
+  useEffect(() => {
+    loadPlayers();
+  }, [loadPlayers]);
+
+  const filtered = useMemo(() => {
+    if (!players) return [];
+    if (!q) return players;
     const kw = q.toLowerCase();
-    return list.filter((p) =>
-      `${p.playerCode || ""} ${p.fullName} ${p.nickname || ""}`.toLowerCase().includes(kw)
+    return players.filter((p) =>
+      `${p.playerCode || ""} ${p.fullName || ""} ${p.nickname || ""}`
+        .toLowerCase()
+        .includes(kw)
     );
   }, [players, q]);
-  function onGenerate() { setForm((f) => ({ ...f, playerCode: genCode("PL") })); }
-  async function onSubmit(e) {
+
+  const handleGenerateCode = () => {
+    setForm((f) => ({ ...f, playerCode: genCode("PL") }));
+  };
+
+  const handleChange = (field) => (e) => {
+    const value = e.target.value;
+    setForm((f) => ({ ...f, [field]: value }));
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.fullName || !form.fullName.trim()) { setErr("กรอกชื่อ–สกุล"); return; }
+
+    if (!form.fullName.trim()) {
+      setErr("กรุณากรอกชื่อ–สกุล");
+      return;
+    }
+
     const payload = {
       playerCode: form.playerCode || undefined,
       fullName: form.fullName.trim(),
-      nickname: form.nickname ? form.nickname.trim() : undefined,
+      nickname: form.nickname?.trim() || undefined,
       age: form.age ? Number(form.age) : undefined,
-      lastCompetition: form.lastCompetition ? form.lastCompetition.trim() : undefined,
-      photoUrl: form.photoUrl ? form.photoUrl.trim() : undefined,
+      lastCompetition: form.lastCompetition?.trim() || undefined,
     };
+
     setSubmitting(true);
     try {
       const created = await API.createPlayer(payload);
+      // ใส่ตัวที่สร้างใหม่ไว้บนสุด
       setPlayers((prev) => [created, ...(prev || [])]);
-      setForm({ playerCode: "", fullName: "", nickname: "", age: "", lastCompetition: "", photoUrl: "" });
+
+      setForm({
+        playerCode: "",
+        fullName: "",
+        nickname: "",
+        age: "",
+        lastCompetition: "",
+      });
       setErr("");
-    } catch (e) { setErr(e && e.message ? e.message : "บันทึกไม่สำเร็จ");
-    } finally { setSubmitting(false); }
-  }
-  // (จบ Logic)
+    } catch (e2) {
+      console.error(e2);
+      setErr(e2?.message || "บันทึกผู้เล่นไม่สำเร็จ");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div className="flex flex-col gap-4"> {/* "card-body" & gap */}
-      <h2 className="text-2xl font-bold">Players</h2> {/* "section-title" */}
+    <div className="flex flex-col gap-4">
+      <h2 className="text-2xl font-bold">Players</h2>
 
-      {/* Inline form */}
-      <form onSubmit={onSubmit} className="bg-white rounded-xl shadow border p-4"> {/* "card" */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"> {/* Grid layout */}
+      {/* form เพิ่มผู้เล่น */}
+      <form
+        onSubmit={handleSubmit}
+        className="bg-white rounded-xl shadow border p-4"
+      >
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <div>
             <FormLabel>Player ID</FormLabel>
             <div className="flex gap-2">
               <Input
                 placeholder="เว้นว่างให้ระบบสร้าง"
                 value={form.playerCode}
-                onChange={(e) => setForm({ ...form, playerCode: e.target.value })}
+                onChange={handleChange("playerCode")}
               />
-              <Button variant="outline" onClick={onGenerate}>Gen</Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGenerateCode}
+              >
+                Gen
+              </Button>
             </div>
           </div>
+
           <div>
             <FormLabel>ชื่อ–สกุล</FormLabel>
             <Input
               value={form.fullName}
-              onChange={(e) => setForm({ ...form, fullName: e.target.value })}
+              onChange={handleChange("fullName")}
               required
             />
           </div>
+
           <div>
             <FormLabel>ชื่อเล่น</FormLabel>
             <Input
               value={form.nickname}
-              onChange={(e) => setForm({ ...form, nickname: e.target.value })}
+              onChange={handleChange("nickname")}
             />
           </div>
+
           <div>
             <FormLabel>อายุ</FormLabel>
             <Input
               inputMode="numeric"
               value={form.age}
-              onChange={(e) => setForm({ ...form, age: e.target.value })}
+              onChange={handleChange("age")}
             />
           </div>
+
           <div className="md:col-span-2">
             <FormLabel>รายการล่าสุดที่ลงแข่ง</FormLabel>
             <Input
               value={form.lastCompetition}
-              onChange={(e) => setForm({ ...form, lastCompetition: e.target.value })}
-            />
-          </div>
-          <div className="md:col-span-2">
-            <FormLabel>ลิงก์รูป</FormLabel>
-            <Input
-              value={form.photoUrl}
-              onChange={(e) => setForm({ ...form, photoUrl: e.target.value })}
+              onChange={handleChange("lastCompetition")}
             />
           </div>
         </div>
+
         <div className="mt-4 flex items-center gap-4">
-          <Button variant="primary" disabled={submitting}>
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={submitting}
+          >
             {submitting ? "กำลังบันทึก…" : "เพิ่มผู้เล่น"}
           </Button>
           {err && <span className="text-sm text-red-600">{err}</span>}
         </div>
       </form>
 
-      {/* Toolbar */}
+      {/* toolbar + search */}
       <div className="flex justify-between items-center mt-4">
         <strong className="text-lg">รายชื่อนักกีฬา</strong>
         <Input
@@ -154,9 +232,9 @@ export default function PlayersPage() {
         />
       </div>
 
-      {/* Table */}
-      <div className="bg-white rounded-xl shadow border overflow-hidden"> {/* "card" */}
-        <table className="w-full text-sm"> {/* "table" */}
+      {/* ตารางรายชื่อ */}
+      <div className="bg-white rounded-xl shadow border overflow-hidden">
+        <table className="w-full text-sm">
           <thead className="bg-gray-50">
             <tr>
               <th className="p-3 text-left w-32">ID</th>
@@ -167,22 +245,45 @@ export default function PlayersPage() {
             </tr>
           </thead>
           <tbody>
-            {(filtered || []).map((p) => (
-              <tr key={p._id} className="border-t">
-                <td className="p-3">
-                  <span className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">{p.playerCode || "-"}</span> {/* "badge" */}
-                </td>
-                <td className="p-3 font-medium">{p.fullName}</td>
-                <td className="p-3">{p.nickname || "-"}</td>
-                <td className="p-3 text-center">{typeof p.age === "number" ? p.age : "-"}</td>
-                <td className="p-3 text-gray-500">{p.lastCompetition || "-"}</td> {/* "muted" */}
-              </tr>
-            ))}
+            {filtered &&
+              filtered.map((p) => (
+                <tr key={p._id} className="border-t">
+                  <td className="p-3">
+                    <span className="px-2.5 py-0.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                      {p.playerCode || "-"}
+                    </span>
+                  </td>
+                  <td className="p-3 font-medium">{p.fullName}</td>
+                  <td className="p-3">{p.nickname || "-"}</td>
+                  <td className="p-3 text-center">
+                    {typeof p.age === "number" ? p.age : "-"}
+                  </td>
+                  <td className="p-3 text-gray-500">
+                    {p.lastCompetition || "-"}
+                  </td>
+                </tr>
+              ))}
+
             {!players && (
-              <tr><td colSpan={5} className="p-4 text-center text-gray-500">กำลังโหลด…</td></tr>
+              <tr>
+                <td
+                  colSpan={5}
+                  className="p-4 text-center text-gray-500"
+                >
+                  กำลังโหลด…
+                </td>
+              </tr>
             )}
+
             {players && filtered.length === 0 && (
-              <tr><td colSpan={5} className="p-4 text-center text-gray-500">ไม่พบข้อมูล</td></tr>
+              <tr>
+                <td
+                  colSpan={5}
+                  className="p-4 text-center text-gray-500"
+                >
+                  ไม่พบข้อมูล
+                </td>
+              </tr>
             )}
           </tbody>
         </table>

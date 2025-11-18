@@ -2,7 +2,8 @@
 
 // 1) ถ้าหน้าเว็บรันบน localhost ให้ "บังคับใช้" backend local ทันที
 const DEV_FORCE =
-  (location.hostname === "localhost" || location.hostname === "127.0.0.1")
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1"
     ? "http://localhost:5000/api"
     : null;
 
@@ -14,17 +15,19 @@ function normalizeApiBase(s) {
   const b = String(s).trim().replace(/\/$/, "");
   return b.endsWith("/api") ? b : `${b}/api`;
 }
+
 export const API_BASE = normalizeApiBase(DEV_FORCE || RAW_ENV);
 
 // ---------- helpers ----------
 async function handle(res) {
-// ... existing code ...
   if (!res.ok) {
     let msg = await res.text().catch(() => "");
-    try { msg = JSON.parse(msg)?.message || msg; } catch {}
+    try {
+      msg = JSON.parse(msg)?.message || msg;
+    } catch {}
     throw new Error(msg || `${res.status} ${res.statusText}`);
   }
-// ... existing code ...
+
   const ct = res.headers.get("content-type") || "";
   return ct.includes("application/json") ? res.json() : res.text();
 }
@@ -32,8 +35,11 @@ async function handle(res) {
 async function request(path, opts = {}) {
   const url = `${API_BASE}${path}`;
   const res = await fetch(url, {
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...(opts.headers || {}),
+    },
+    credentials: "include", // ✅ สำคัญสำหรับ cookie-based auth
     ...opts,
   });
   return handle(res);
@@ -41,31 +47,46 @@ async function request(path, opts = {}) {
 
 // ---------- exported API ----------
 export const API = {
-// ... existing code ...
-  // Teams
+  // ===== Auth =====
+  login: ({ username, password }) =>
+    request("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+    }),
+
+  logout: () =>
+    request("/auth/logout", {
+      method: "POST",
+    }),
+
+  getMe: () => request("/auth/me"),
+
+  // ===== Teams =====
   listTeams: () => request("/teams"),
-  listTeamsByHand: (hand) => request(`/teams?handLevel=${encodeURIComponent(hand)}`),
-// ... existing code ...
-  createTeam: (data) => request("/teams", { method: "POST", body: JSON.stringify(data) }),
+  listTeamsByHand: (hand) =>
+    request(`/teams?handLevel=${encodeURIComponent(hand)}`),
+  createTeam: (data) =>
+    request("/teams", { method: "POST", body: JSON.stringify(data) }),
 
-  // Matches (พื้นฐาน)
-  // listAllMatches: () => request("/matches"), // This is now replaced by listSchedule
-  // updateMatch: (id, body) => request(`/matches/${id}`, { method: "PUT", body: JSON.stringify(body) }), // Replaced by updateScore
+  // ===== Players =====
+  listPlayers: () => request("/players"),
+  createPlayer: (data) =>
+    request("/players", { method: "POST", body: JSON.stringify(data) }),
 
-  // ✅ ตารางเวลา + กรอง/แบ่งหน้า (ตัวใหม่ที่หน้า Matches/Admin เรียกใช้)
+  // ===== Matches / Schedule =====
   listSchedule: ({
     page = 1,
     pageSize = 50,
-    day = "", // ADDED
+    day = "",
     handLevel = "",
     group = "",
     court = "",
     status = "",
     q = "",
-    sort = "matchNo,scheduledAt", // UPDATED DEFAULT SORT
+    sort = "matchNo,scheduledAt",
   } = {}) => {
     const qs = new URLSearchParams();
-    if (day) qs.set("day", day); // ADDED
+    if (day) qs.set("day", day);
     if (handLevel) qs.set("handLevel", handLevel);
     if (group) qs.set("group", group);
     if (court) qs.set("court", court);
@@ -77,117 +98,144 @@ export const API = {
     return request(`/matches?${qs.toString()}`);
   },
 
-  // ✅ NEW: Schedule Plan APIs (From previous step)
-  reorderMatches: (data) => request("/matches/reorder", { method: "PATCH", body: JSON.stringify(data) }),
-  updateSchedule: (id, data) => request(`/matches/${id}/schedule`, { method: "PUT", body: JSON.stringify(data) }),
-  updateScore: (id, data) => request(`/matches/${id}/score`, { method: "PUT", body: JSON.stringify(data) }),
+  reorderMatches: (data) =>
+    request("/matches/reorder", {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
 
-  // Tournaments
-  generateGroups: (body) => request("/tournaments/generate-groups", { method: "POST", body: JSON.stringify(body) }),
-// ... existing code ...
-  manualGroupAndGenerate: (body) => request("/tournaments/generate-groups/manual", { method: "POST", body: JSON.stringify(body) }),
-  generateKnockout: (body) => request("/tournaments/generate-knockout", { method: "POST", body: JSON.stringify(body) }),
-// ... existing code ...
+  updateSchedule: (id, data) =>
+    request(`/matches/${id}/schedule`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 
-  // Players
-  listPlayers: () => request("/players"),
-// ... existing code ...
-  createPlayer: (data) => request("/players", { method: "POST", body: JSON.stringify(data) }),
+  updateScore: (id, data) =>
+    request(`/matches/${id}/score`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
 
-  // Standings
-// ... existing code ...
+  // ===== Tournament / Groups / Knockout =====
+  generateGroups: (body) =>
+    request("/tournaments/generate-groups", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  manualGroupAndGenerate: (body) =>
+    request("/tournaments/generate-groups/manual", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  generateKnockout: (body) =>
+    request("/tournaments/generate-knockout/manual", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  // ===== Standings =====
   getStandings: (hand) =>
-    request(`/standings${hand ? `?handLevel=${encodeURIComponent(hand)}` : ""}`),
+    request(
+      `/standings${hand ? `?handLevel=${encodeURIComponent(hand)}` : ""}`
+    ),
 
-  // Utilities เดิม (คงไว้)
-// ... existing code ...
+  // Utilities: group standings จาก teams
   async listGroups() {
     const teams = await request("/teams");
     const byLevel = {};
-// ... existing code ...
+
     for (const t of teams) {
       const level = t.handLevel || "UNKNOWN";
       const g = t.group ?? null;
-// ... existing code ...
+
       if (!byLevel[level]) byLevel[level] = { level, groups: {} };
       if (g === null) continue;
-      if (!byLevel[level].groups[g]) byLevel[level].groups[g] = { groupName: g, teams: [] };
-// ... existing code ...
+
+      if (!byLevel[level].groups[g]) {
+        byLevel[level].groups[g] = { groupName: g, teams: [] };
+      }
       byLevel[level].groups[g].teams.push(t);
     }
+
     const result = Object.values(byLevel)
-// ... existing code ...
       .map((lvl) => {
         Object.values(lvl.groups).forEach((g) => {
-          g.teams.sort((a, b) =>
-// ... existing code ...
-            (b.points ?? 0) - (a.points ?? 0) ||
-            (b.scoreDiff ?? ((b.scoreFor ?? 0) - (b.scoreAgainst ?? 0))) -
-              (a.scoreDiff ?? ((a.scoreFor ?? 0) - (a.scoreAgainst ?? 0)))
-// ... existing code ...
+          g.teams.sort(
+            (a, b) =>
+              (b.points ?? 0) - (a.points ?? 0) ||
+              (b.scoreDiff ??
+                (b.scoreFor ?? 0) - (b.scoreAgainst ?? 0)) -
+                (a.scoreDiff ??
+                  (a.scoreFor ?? 0) - (a.scoreAgainst ?? 0))
           );
         });
+
         return {
-// ... existing code ...
           level: lvl.level,
-          groups: Object.values(lvl.groups).sort((a, b) => a.groupName.localeCompare(b.groupName)),
+          groups: Object.values(lvl.groups).sort((a, b) =>
+            a.groupName.localeCompare(b.groupName)
+          ),
         };
       })
       .sort((a, b) => a.level.localeCompare(b.level));
+
     return result;
   },
 
   async listGroupMatches() {
-// ... existing code ...
     const matches = await request("/matches");
     const byLevel = {};
+
     for (const m of matches) {
-// ... existing code ...
       if (!/group/i.test(m.round || "group")) continue;
+
       const level =
         (m.level && m.level.toUpperCase()) ||
-// ... existing code ...
-        (m.team1?.handLevel?.toUpperCase()) ||
-        (m.team2?.handLevel?.toUpperCase()) ||
+        (m.team1?.handLevel?.toUpperCase && m.team1.handLevel.toUpperCase()) ||
+        (m.team2?.handLevel?.toUpperCase && m.team2.handLevel.toUpperCase()) ||
         "UNKNOWN";
-// ... existing code ...
+
       if (!byLevel[level]) byLevel[level] = { level, matches: [] };
       byLevel[level].matches.push(m);
     }
-// ... existing code ...
+
     return Object.values(byLevel);
   },
 
   async listKnockout() {
-// ... existing code ...
     const matches = await request("/matches");
     const byRound = {};
+
     for (const m of matches) {
-// ... existing code ...
       if (/group/i.test(m.round || "")) continue;
       const name = m.round || "Knockout";
       if (!byRound[name]) byRound[name] = { name, matches: [] };
-// ... existing code ...
       byRound[name].matches.push(m);
     }
+
     const order = ["Round of 16", "Quarter-final", "Semifinal", "Final"];
-// ... existing code ...
     return Object.values(byRound).sort(
-      (a, b) => (order.indexOf(a.name) + 1 || 99) - (order.indexOf(b.name) + 1 || 99)
+      (a, b) =>
+        (order.indexOf(a.name) + 1 || 99) -
+        (order.indexOf(b.name) + 1 || 99)
     );
   },
 };
 
+// ---------- Helpers ----------
 export function teamName(t) {
-// ... existing code ...
   if (!t) return "-";
   if (typeof t === "string") return t;
   if (t.teamName) return t.teamName;
   if (t.name) return t.name;
-  const n1 = t.players?.[0]?.nickname || t.players?.[0]?.fullName || "";
-  const n2 = t.players?.[1]?.nickname || t.players?.[1]?.fullName || "";
-// ... existing code ...
+
+  const n1 =
+    t.players?.[0]?.nickname || t.players?.[0]?.fullName || "";
+  const n2 =
+    t.players?.[1]?.nickname || t.players?.[1]?.fullName || "";
+
   const duo = [n1, n2].filter(Boolean).join("/");
   return duo || "-";
 }
-
