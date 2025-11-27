@@ -1,18 +1,22 @@
 // src/pages/public/Schedule.jsx
-// ตารางแข่ง (Public) โหลดจาก API จริง + Responsive
+// ตารางแข่ง (Public) โหลดจาก API จริง + Responsive + Filter Accordion
 
 import React, { useState, useEffect } from "react";
 import { API, teamName } from "@/lib/api.js";
 import { HAND_LEVEL_OPTIONS } from "@/lib/types.js";
 
-// สีสถานะ (ชัดขึ้น)
-// - รอแข่ง: ฟ้า
-// - กำลังแข่ง: แดง
-// - จบแล้ว: เทา
+// สีสถานะ
 const statusStyle = {
   finished: "bg-slate-200 text-slate-700",
   "in-progress": "bg-red-100 text-red-700",
   scheduled: "bg-sky-100 text-sky-700",
+};
+
+// ลำดับความสำคัญของสถานะ (ใช้ซ้ำ)
+const STATUS_PRIORITY = {
+  "in-progress": 0,
+  scheduled: 1,
+  finished: 2,
 };
 
 // การ์ดสำหรับมือถือ
@@ -39,8 +43,7 @@ function MatchCard({ m }) {
       {/* Col 2: Teams */}
       <div className="col-span-2">
         <div className="font-medium truncate">
-          {teamName(m.team1)}{" "}
-          <span className="text-slate-400">vs</span>{" "}
+          {teamName(m.team1)} <span className="text-slate-400">vs</span>{" "}
           {teamName(m.team2)}
         </div>
         <div className="text-xs text-slate-500">
@@ -61,7 +64,7 @@ function MatchCard({ m }) {
           }`}
         >
           {m.status === "in-progress"
-            ? "แข่งอยู่"
+            ? "กำลังแข่งขัน"
             : m.status === "finished"
             ? "จบแล้ว"
             : "รอแข่ง"}
@@ -88,7 +91,10 @@ export default function PublicScheduleLongRow() {
   const [page, setPage] = useState(1);
   const pageSize = 24;
 
-  // โหลดข้อมูลจาก API
+  // state สำหรับ accordion ฟิลเตอร์
+  const [showFilters, setShowFilters] = useState(false);
+
+  // โหลดข้อมูลจาก API + กรองด้วยชื่อทีม / Match ID ฝั่ง FE
   const loadMatches = async () => {
     setLoading(true);
     setErr("");
@@ -99,12 +105,42 @@ export default function PublicScheduleLongRow() {
         handLevel: level,
         court,
         status, // อนุญาตให้ส่ง "scheduled,in-progress"
-        q,
-        sort: "scheduledAt,matchNo", // เรียงตามเวลา แล้วตาม matchNo
+        q, // ส่งให้ backend ด้วย เผื่อใช้ในอนาคต
+        sort: "matchNo", // ใช้ลำดับ master
       });
+
+      const raw = res.items || [];
+
+      // 🔎 กรองด้วย keyword: Match ID + ชื่อทีม (team1 / team2)
+      const keyword = (q || "").trim();
+      let filtered = raw;
+
+      if (keyword) {
+        const re = new RegExp(keyword, "i");
+        filtered = raw.filter((m) => {
+          const name1 = teamName(m.team1) || "";
+          const name2 = teamName(m.team2) || "";
+          const id = m.matchId || "";
+          return re.test(id) || re.test(name1) || re.test(name2);
+        });
+      }
+
+      // ✅ จัดลำดับเพิ่มที่ฝั่ง client: in-progress → scheduled → finished → matchNo
+      const items = filtered.slice().sort((a, b) => {
+        const pa = STATUS_PRIORITY[a.status] ?? 99;
+        const pb = STATUS_PRIORITY[b.status] ?? 99;
+        if (pa !== pb) return pa - pb;
+
+        const na = Number(a.matchNo ?? 0);
+        const nb = Number(b.matchNo ?? 0);
+        return na - nb;
+      });
+
       setData({
-        items: res.items || [],
-        total: res.total || 0,
+        items,
+        // total = จำนวนทั้งหมดใน page นั้น ๆ จาก backend
+        // เพื่อให้ข้อความ "แสดง X จาก Y แมทช์" ยังเวิร์ก
+        total: res.total ?? raw.length,
       });
     } catch (e) {
       setErr(e.message || "Failed to load matches");
@@ -116,6 +152,7 @@ export default function PublicScheduleLongRow() {
   // reload เมื่อ filter / page เปลี่ยน
   useEffect(() => {
     loadMatches();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [level, court, status, q, page]);
 
   const totalPages = Math.max(1, Math.ceil(data.total / pageSize));
@@ -132,14 +169,40 @@ export default function PublicScheduleLongRow() {
     return () => window.removeEventListener("keydown", onKey);
   }, [totalPages]);
 
+  // 🔧 ใช้ object {label, value, labelShort}
   const levels = HAND_LEVEL_OPTIONS;
   const courts = Array.from({ length: 14 }, (_, i) => String(i + 1));
+
+  // helper สำหรับแสดง summary บนแถบ accordion
+  const levelLabel =
+    level && levels.find((o) => o.value === level)
+      ? levels.find((o) => o.value === level)?.labelShort ||
+        levels.find((o) => o.value === level)?.label ||
+        level
+      : "ทุกระดับมือ";
+
+  const courtLabel = court ? `คอร์ท ${court}` : "ทุกคอร์ท";
+
+  const statusLabel = (() => {
+    switch (status) {
+      case "scheduled,in-progress":
+        return "รอแข่ง + กำลังแข่ง";
+      case "scheduled":
+        return "รอแข่ง";
+      case "in-progress":
+        return "กำลังแข่ง";
+      case "finished":
+        return "จบแล้ว";
+      default:
+        return "ทุกสถานะ";
+    }
+  })();
 
   return (
     <div className="min-h-screen bg-slate-50 p-3 md:p-6">
       <div className="max-w-7xl mx-auto">
-        {/* Header + Filters */}
-        <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-4">
+        {/* Header */}
+        <header className="flex flex-col gap-1 mb-3 md:mb-4 md:flex-row md:items-end md:justify-between">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-indigo-700">
               Moodeng Cup 2025
@@ -149,69 +212,134 @@ export default function PublicScheduleLongRow() {
             </p>
           </div>
 
-          <div className="flex flex-col md:flex-row md:items-center gap-2">
-            {/* ระดับมือ */}
-            <select
-              className="bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700"
-              value={level}
-              onChange={(e) => {
-                setLevel(e.target.value);
-                setPage(1);
-              }}
+          {/* ปุ่มเปิด/ปิดตัวกรอง สำหรับทั้ง mobile + desktop */}
+          <button
+            type="button"
+            onClick={() => setShowFilters((v) => !v)}
+            className="inline-flex items-center justify-between md:justify-center gap-2 rounded-full border border-indigo-200 bg-white px-3 py-1.5 text-xs md:text-sm font-medium text-indigo-700 shadow-sm hover:bg-indigo-50 transition-colors"
+          >
+            <span>ตัวกรองการแสดงผล</span>
+            <span
+              className={`inline-flex h-5 w-5 items-center justify-center rounded-full border text-[10px] ${
+                showFilters
+                  ? "bg-indigo-600 text-white border-indigo-600"
+                  : "bg-indigo-50 text-indigo-700 border-indigo-200"
+              }`}
             >
-              <option value="">ทุกระดับมือ</option>
-              {levels.map((l) => (
-                <option key={l} value={l}>
-                  {l}
-                </option>
-              ))}
-            </select>
-
-            {/* คอร์ท */}
-            <select
-              className="bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700"
-              value={court}
-              onChange={(e) => {
-                setCourt(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="">ทุกคอร์ท</option>
-              {courts.map((c) => (
-                <option key={c} value={c}>
-                  คอร์ท {c}
-                </option>
-              ))}
-            </select>
-
-            {/* ✅ สถานะ (มี option รวม รอแข่ง+กำลังแข่ง เป็น default) */}
-            <select
-              className="bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700"
-              value={status}
-              onChange={(e) => {
-                setStatus(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="scheduled,in-progress">
-                รอแข่ง + กำลังแข่ง (แนะนำ)
-              </option>
-              <option value="scheduled">รอแข่งเท่านั้น</option>
-              <option value="in-progress">กำลังแข่งเท่านั้น</option>
-              <option value="finished">จบแล้ว</option>
-              <option value="">ทุกสถานะ</option>
-            </select>
-
-            {/* ค้นหา */}
-            <input
-              className="flex-grow bg-white border border-gray-300 rounded-md px-3 py-2 text-sm"
-              placeholder="ค้นหา: Match ID / ชื่อทีม"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              onBlur={() => setPage(1)}
-            />
-          </div>
+              {showFilters ? "–" : "+"}
+            </span>
+          </button>
         </header>
+
+        {/* แถบ Summary ฟิลเตอร์ + Accordion */}
+        <section className="mb-4">
+          {/* summary bar */}
+          <div className="mb-1 flex flex-wrap items-center gap-1.5 text-[11px] md:text-xs text-slate-500">
+            <span className="font-semibold text-slate-700">
+              ตัวกรองปัจจุบัน:
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+              {levelLabel}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+              {courtLabel}
+            </span>
+            <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              {statusLabel}
+            </span>
+          </div>
+
+          {/* panel ขยายได้ */}
+          {showFilters && (
+            <div className="rounded-2xl border border-slate-200 bg-white/80 p-3 md:p-4 shadow-sm">
+              <div className="grid grid-cols-1 gap-2 md:grid-cols-4 md:items-end">
+                {/* ระดับมือ */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-slate-600">
+                    ระดับมือ
+                  </label>
+                  <select
+                    className="bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700"
+                    value={level}
+                    onChange={(e) => {
+                      setLevel(e.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    <option value="">ทุกระดับมือ</option>
+                    {levels.map((opt) => (
+                      <option key={opt.value} value={opt.value}>
+                        {opt.labelShort || opt.label || opt.value}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* คอร์ท */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-slate-600">
+                    คอร์ท
+                  </label>
+                  <select
+                    className="bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700"
+                    value={court}
+                    onChange={(e) => {
+                      setCourt(e.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    <option value="">ทุกคอร์ท</option>
+                    {courts.map((c) => (
+                      <option key={c} value={c}>
+                        คอร์ท {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* สถานะ */}
+                <div className="flex flex-col gap-1">
+                  <label className="text-[11px] font-medium text-slate-600">
+                    สถานะการแข่งขัน
+                  </label>
+                  <select
+                    className="bg-gray-50 border border-gray-300 rounded-md px-3 py-2 text-sm text-gray-700"
+                    value={status}
+                    onChange={(e) => {
+                      setStatus(e.target.value);
+                      setPage(1);
+                    }}
+                  >
+                    <option value="scheduled,in-progress">
+                      รอแข่ง + กำลังแข่ง (แนะนำ)
+                    </option>
+                    <option value="scheduled">รอแข่งเท่านั้น</option>
+                    <option value="in-progress">กำลังแข่งเท่านั้น</option>
+                    <option value="finished">จบแล้ว</option>
+                    <option value="">ทุกสถานะ</option>
+                  </select>
+                </div>
+
+                {/* ค้นหา */}
+                <div className="flex flex-col gap-1 md:col-span-1">
+                  <label className="text-[11px] font-medium text-slate-600">
+                    ค้นหา
+                  </label>
+                  <input
+                    className="w-full bg-white border border-gray-300 rounded-md px-3 py-2 text-sm"
+                    placeholder="ค้นหา: Match ID / ชื่อทีม"
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    onBlur={() => setPage(1)}
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
 
         {err && (
           <div className="text-red-600 bg-red-100 p-3 rounded-md mb-4">
@@ -249,14 +377,11 @@ export default function PublicScheduleLongRow() {
                 </div>
                 <div className="col-span-2 font-medium text-slate-800">
                   {m.scheduledAt
-                    ? new Date(m.scheduledAt).toLocaleTimeString(
-                        "th-TH",
-                        {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          timeZone: "Asia/Bangkok",
-                        }
-                      )
+                    ? new Date(m.scheduledAt).toLocaleTimeString("th-TH", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                        timeZone: "Asia/Bangkok",
+                      })
                     : "-"}
                 </div>
                 <div className="col-span-1 text-center">
@@ -288,7 +413,7 @@ export default function PublicScheduleLongRow() {
                     }`}
                   >
                     {m.status === "in-progress"
-                      ? "แข่งอยู่"
+                      ? "กำลังแข่งขัน"
                       : m.status === "finished"
                       ? "จบแล้ว"
                       : "รอแข่ง"}
@@ -317,7 +442,7 @@ export default function PublicScheduleLongRow() {
         </div>
 
         {/* Pagination */}
-        <div className="flex items-center justify_between mt-3 text-sm">
+        <div className="flex items-center justify-between mt-3 text-sm">
           <div className="text-slate-500">
             แสดง {data.items.length} จาก {data.total} แมทช์
           </div>
@@ -337,7 +462,9 @@ export default function PublicScheduleLongRow() {
             <button
               className="px-3 py-2 rounded border bg-white shadow-sm disabled:opacity-40"
               onClick={() =>
-                setPage((p) => Math.min(totalPages, p + 1))
+                setPage((p) =>
+                  Math.min(totalPages, p + 1)
+                )
               }
               disabled={page === totalPages || loading}
             >
@@ -348,7 +475,8 @@ export default function PublicScheduleLongRow() {
 
         <footer className="text-center text-xs text-slate-400 mt-4">
           อัปเดตล่าสุด:{" "}
-          {new Date().toLocaleString("th-TH")} • ใช้ปุ่ม ⬅️➡️ เปลี่ยนหน้า
+          {new Date().toLocaleString("th-TH")} • ใช้ปุ่ม ⬅️➡️
+          เปลี่ยนหน้า
         </footer>
       </div>
     </div>

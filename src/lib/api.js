@@ -67,6 +67,13 @@ export const API = {
     request(`/teams?handLevel=${encodeURIComponent(hand)}`),
   createTeam: (data) =>
     request("/teams", { method: "POST", body: JSON.stringify(data) }),
+  
+  // อัปเดตอันดับ (Manual Rank)
+  updateTeamRanks: (updates) =>
+    request("/teams/update-ranks", {
+      method: "PUT",
+      body: JSON.stringify({ updates }),
+    }),
 
   // ===== Players =====
   listPlayers: () => request("/players"),
@@ -98,6 +105,62 @@ export const API = {
     return request(`/matches?${qs.toString()}`);
   },
 
+  // ใช้สำหรับหน้า AdminMatchScoring
+  listMatchesForScoring: async ({
+    page = 1,
+    pageSize = 24,
+    handLevel = "",
+    group = "",
+    q = "",
+    roundType = "",
+    onlyFinished = false,
+  } = {}) => {
+    const qs = new URLSearchParams();
+    if (handLevel) qs.set("handLevel", handLevel);
+    if (group) qs.set("group", group);
+    if (roundType) qs.set("roundType", roundType);
+
+    const base = await request(
+      `/matches${qs.toString() ? `?${qs.toString()}` : ""}`
+    );
+
+    const all = Array.isArray(base?.items)
+      ? base.items
+      : Array.isArray(base)
+      ? base
+      : [];
+
+    let items = all;
+
+    if (onlyFinished) {
+      items = items.filter((m) => m.status === "finished");
+    }
+
+    if (q) {
+      const keyword = q.toLowerCase();
+      items = items.filter((m) => {
+        const id =
+          (m.matchId && String(m.matchId).toLowerCase()) ||
+          (m.matchNo && String(m.matchNo).toLowerCase()) ||
+          "";
+        const t1 =
+          (teamName(m.team1) || m.team1Name || "").toLowerCase();
+        const t2 =
+          (teamName(m.team2) || m.team2Name || "").toLowerCase();
+        return (
+          id.includes(keyword) || t1.includes(keyword) || t2.includes(keyword)
+        );
+      });
+    }
+
+    const total = items.length;
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const pageItems = items.slice(start, end);
+
+    return { items: pageItems, total, page };
+  },
+
   reorderMatches: (data) =>
     request("/matches/reorder", {
       method: "PATCH",
@@ -114,6 +177,13 @@ export const API = {
     request(`/matches/${id}/score`, {
       method: "PUT",
       body: JSON.stringify(data),
+    }),
+
+  // ✅✅✅ เพิ่มฟังก์ชันสำหรับ Mock คะแนน ✅✅✅
+  mockScores: ({ handLevel }) =>
+    request("/matches/mock-scores", {
+      method: "POST",
+      body: JSON.stringify({ handLevel }),
     }),
 
   // ===== Tournament / Groups / Knockout =====
@@ -134,12 +204,34 @@ export const API = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+    
+  // ฟังก์ชันสร้าง Knockout อัตโนมัติ
+  generateKnockoutAuto: (body) =>
+    request("/matches/generate-knockout-auto", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 
   // ===== Standings =====
   getStandings: (hand) =>
     request(
       `/standings${hand ? `?handLevel=${encodeURIComponent(hand)}` : ""}`
     ),
+
+  clearStandings: ({ handLevel, resetMatches = true, tournamentId }) =>
+    request("/standings/clear", {
+      method: "POST",
+      body: JSON.stringify({
+        handLevel,
+        resetMatches,
+        tournamentId,
+      }),
+    }),
+  recalculateStandings: ({ handLevel, tournamentId }) =>
+    request("/standings/recalculate", {
+      method: "POST",
+      body: JSON.stringify({ handLevel, tournamentId }),
+    }),
 
   // Utilities: group standings จาก teams
   async listGroups() {
@@ -193,8 +285,10 @@ export const API = {
 
       const level =
         (m.level && m.level.toUpperCase()) ||
-        (m.team1?.handLevel?.toUpperCase && m.team1.handLevel.toUpperCase()) ||
-        (m.team2?.handLevel?.toUpperCase && m.team2.handLevel.toUpperCase()) ||
+        (m.team1?.handLevel?.toUpperCase &&
+          m.team1.handLevel.toUpperCase()) ||
+        (m.team2?.handLevel?.toUpperCase &&
+          m.team2.handLevel.toUpperCase()) ||
         "UNKNOWN";
 
       if (!byLevel[level]) byLevel[level] = { level, matches: [] };
@@ -209,8 +303,9 @@ export const API = {
     const byRound = {};
 
     for (const m of matches) {
-      if (/group/i.test(m.round || "")) continue;
-      const name = m.round || "Knockout";
+      if (m.roundType !== "knockout") continue;
+      const name = m.roundName || m.round || "Unknown";
+
       if (!byRound[name]) byRound[name] = { name, matches: [] };
       byRound[name].matches.push(m);
     }

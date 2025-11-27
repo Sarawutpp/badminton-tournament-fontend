@@ -1,5 +1,4 @@
 // src/layouts/AdminLayout.jsx
-// (เวอร์ชันที่แปลเป็น Tailwind CSS และเพิ่ม Auth + Logout แล้ว)
 
 import React from "react";
 import {
@@ -10,7 +9,6 @@ import {
 } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-// NAV (เมนู) ยังคงเหมือนเดิม
 const NAV = [
   { to: "/admin/players", label: "Players", icon: "👤" },
   { to: "/admin/teams", label: "Teams", icon: "👥" },
@@ -18,11 +16,21 @@ const NAV = [
   { to: "/admin/schedule-plan", label: "Schedule Plan", icon: "🗓️" },
   { to: "/admin/court-running", label: "Court Running", icon: "🏸" },
   { to: "/admin/matches", label: "Matches (Scoring)", icon: "📋" },
-  { to: "/admin/standings", label: "Standings", icon: "📊" },
-  { to: "/admin/knockout", label: "Knockout", icon: "🏆" },
+  { to: "/admin/standings", label: "Admin Standings", icon: "📊" },
+
+  // 🔥 แยกเมนู Knockout เป็น 2 หน้า
+  {
+    to: "/admin/knockout/bracket",
+    label: "จัดสาย Knockout",
+    icon: "🧩",
+  },
+  {
+    to: "/admin/knockout/scoring",
+    label: "กรอกคะแนน Knockout",
+    icon: "🏆",
+  },
 ];
 
-// Hook สำหรับเมนูมือถือ (ยังคงเหมือนเดิม)
 function useMobileMenu() {
   const [open, setOpen] = React.useState(false);
   const { pathname } = useLocation();
@@ -30,7 +38,6 @@ function useMobileMenu() {
   return { open, setOpen };
 }
 
-// Helper component สำหรับปุ่ม (ใช้ซ้ำ)
 function Button({ onClick, children, className = "", type = "button" }) {
   return (
     <button
@@ -43,7 +50,6 @@ function Button({ onClick, children, className = "", type = "button" }) {
   );
 }
 
-// Helper component สำหรับ NavLink (ใช้ซ้ำ)
 function NavItem({ to, icon, label, collapsed, isMobile = false }) {
   const commonClasses = "flex items-center gap-3 px-3 py-2.5 rounded-lg";
   const activeClasses = "bg-indigo-700 text-white";
@@ -54,9 +60,7 @@ function NavItem({ to, icon, label, collapsed, isMobile = false }) {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `${commonClasses} ${
-          isActive ? activeClasses : inactiveClasses
-        }`
+        `${commonClasses} ${isActive ? activeClasses : inactiveClasses}`
       }
     >
       <span className="text-lg w-5 text-center">{icon}</span>
@@ -71,7 +75,6 @@ export default function AdminLayout() {
   const { open, setOpen } = useMobileMenu();
   const [collapsed, setCollapsed] = React.useState(false);
 
-  // ✅ Auth hook + logout
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
@@ -81,12 +84,10 @@ export default function AdminLayout() {
   }
 
   return (
-    // Layout หลัก
     <div className="grid grid-rows-[auto_1fr] grid-cols-[auto_1fr] min-h-screen bg-gray-50">
       {/* TOPBAR */}
       <header className="sticky top-0 z-20 col-span-2 flex items-center justify-between gap-4 p-4 border-b bg-white/80 backdrop-blur-sm">
         <div className="flex items-center gap-2">
-          {/* ปุ่มเปิดเมนู (มือถือ) */}
           <Button className="lg:hidden" onClick={() => setOpen(true)}>
             ☰
           </Button>
@@ -95,14 +96,12 @@ export default function AdminLayout() {
           </div>
         </div>
 
-        {/* ขวาสุด: ปุ่มต่าง ๆ + ข้อมูล user */}
         <div className="flex items-center gap-2">
           {/* ลิงก์ไปหน้า Public */}
-          <NavLink to="/t/main" className="hidden sm:block">
+          <NavLink to="/public" className="hidden sm:block">
             <Button>Public Site</Button>
           </NavLink>
 
-          {/* แสดงชื่อ user + role ถ้า login */}
           {user ? (
             <div className="hidden md:flex items-center gap-2 text-sm text-gray-700">
               <span className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700">
@@ -116,11 +115,9 @@ export default function AdminLayout() {
               </Button>
             </div>
           ) : (
-            // กรณีเผื่อไว้ (ปกติจะไม่เข้า เพราะ /admin ถูก RequireAdmin หุ้มแล้ว)
             <Button onClick={() => navigate("/login")}>Login</Button>
           )}
 
-          {/* ปุ่มพับ sidebar (เฉพาะจอใหญ่) */}
           <Button
             className="hidden lg:block"
             onClick={() => setCollapsed((v) => !v)}
@@ -149,7 +146,7 @@ export default function AdminLayout() {
 
         <nav className="flex flex-col gap-1.5 pt-4 border-t">
           <NavItem
-            to="/t/main"
+            to="/public"
             icon="🌍"
             label="Public Site"
             collapsed={collapsed}
@@ -159,17 +156,11 @@ export default function AdminLayout() {
 
       {/* DRAWER (Mobile) */}
       {open && (
-        <div
-          className="fixed inset-0 z-40 lg:hidden"
-          role="dialog"
-          aria-label="Main navigation"
-        >
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-40 lg:hidden" role="dialog">
           <div
             className="fixed inset-0 bg-black/30 backdrop-blur-sm"
             onClick={() => setOpen(false)}
           />
-          {/* Panel */}
           <div className="fixed top-0 left-0 z-50 h-full w-72 bg-white p-4 shadow-xl">
             <div className="flex items-center justify-between mb-4">
               <strong>Menu</strong>
@@ -183,13 +174,12 @@ export default function AdminLayout() {
               <hr className="my-2" />
 
               <NavItem
-                to="/t/main"
+                to="/public"
                 icon="🌍"
                 label="Public Site"
                 isMobile={true}
               />
 
-              {/* user + logout บน mobile */}
               {user && (
                 <div className="mt-4 border-t pt-3 text-sm text-gray-700 flex flex-col gap-2">
                   <span>

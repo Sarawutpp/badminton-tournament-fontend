@@ -1,6 +1,4 @@
 // src/routes.jsx
-// (เวอร์ชันแก้ไข: เพิ่ม RequireAdmin + Login + ป้องกัน /admin)
-
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 // 🧩 Layouts
@@ -15,29 +13,35 @@ import Login from "./pages/Login.jsx";
 import PlayersPage from "./pages/admin/Players";
 import TeamsPage from "./pages/admin/Teams";
 import GeneratorPage from "./pages/admin/Generator";
-import MatchesPage from "./pages/admin/Matches"; // หน้าเก่า (ยังเก็บไว้ ถ้าอยากใช้ต่อ)
-import KnockoutPage from "./pages/admin/Knockout";
+import MatchesPage from "./pages/admin/Matches"; // หน้าเก่า
 import AdminSchedulePlan from "./pages/admin/AdminSchedulePlan.jsx";
-import AdminMatchScoring from "./pages/admin/AdminMatchScoring.jsx"; // หน้าใหม่
+import AdminMatchScoring from "./pages/admin/AdminMatchScoring.jsx";
 import CourtRunningPage from "./pages/admin/CourtRunning.jsx";
+import AdminStandingsPage from "./pages/admin/Groups.jsx";
+
+// 🏆 Knockout Admin Pages
+import KnockoutScoringAdminPage from "./pages/admin/KnockoutScoringAdminPage.jsx";
+import KnockoutBracketAdminPage from "./pages/admin/KnockoutBracketAdminPage.jsx";
 
 // 📊 Public / Shared Pages
 import StandingsPage from "./pages/public/Standings.jsx";
-import BracketPage from "./pages/public/Bracket";
 import SchedulePage from "./pages/public/Schedule";
-import PublicCourtRunning from "./pages/public/PublicCourtRunning.jsx"; // หน้า public running
+import PublicCourtRunning from "./pages/public/PublicCourtRunning.jsx";
+
+// ✅ เปลี่ยนมา import หน้าใหม่แทน Bracket เดิม
+import PublicKnockoutBracket from "./pages/public/PublicKnockoutBracket.jsx";
 
 const router = createBrowserRouter([
-  // 🏠 Root → เปลี่ยนเส้นทางไป /admin (ซึ่งถูก protect ด้วย RequireAdmin)
-  { path: "/", element: <Navigate to="/admin" replace /> },
+  // 🏠 Root -> จะพาไป /public ก่อน
+  { path: "/", element: <Navigate to="/public" replace /> },
 
-  // 🔐 หน้า Login (ไม่ห่อ RequireAdmin)
+  // 🔐 หน้า Login
   {
     path: "/login",
     element: <Login />,
   },
 
-  // ⚙️ Admin Section (ห่อด้วย RequireAdmin)
+  // ⚙️ Admin Section => /admin/...
   {
     path: "/admin",
     element: (
@@ -47,30 +51,50 @@ const router = createBrowserRouter([
     ),
     children: [
       { index: true, element: <Navigate to="standings" replace /> },
+
       { path: "players", element: <PlayersPage /> },
       { path: "teams", element: <TeamsPage /> },
       { path: "generator", element: <GeneratorPage /> },
-      // ถ้ายังอยากเก็บหน้า AdminMatches แบบเดิม
+
+      // legacy matches page
       { path: "matches-old", element: <MatchesPage /> },
-      // ใช้ AdminMatchScoring เป็น default /admin/matches
+
+      // หน้า scoring แบบใหม่
       { path: "matches", element: <AdminMatchScoring /> },
+
       { path: "schedule-plan", element: <AdminSchedulePlan /> },
       { path: "court-running", element: <CourtRunningPage /> },
-      { path: "knockout", element: <KnockoutPage /> },
-      { path: "standings", element: <StandingsPage /> },
+      { path: "standings", element: <AdminStandingsPage /> },
+
+      // 🏆 Knockout Admin
+      {
+        path: "knockout/scoring",
+        element: <KnockoutScoringAdminPage />,
+      },
+      {
+        path: "knockout/bracket",
+        element: <KnockoutBracketAdminPage />,
+      },
+      {
+        path: "knockout",
+        element: <Navigate to="knockout/bracket" replace />,
+      },
     ],
   },
 
-  // 🌐 Public Tournament Section (ไม่ต้อง login)
+  // 🌐 Public Tournament Section => /public/...
   {
-    path: "/t/:slug",
+    path: "/public",
     element: <PublicLayout />,
     children: [
-      { index: true, element: <Navigate to="schedule" replace /> }, // ให้ตารางแข่งเป็นหน้าแรก
-      { path: "schedule", element: <SchedulePage /> },
+      // ให้ Court Running เป็นหน้าแรกเวลาเข้า /public
+      { index: true, element: <Navigate to="running" replace /> },
       { path: "running", element: <PublicCourtRunning /> },
+      { path: "schedule", element: <SchedulePage /> },
       { path: "standings", element: <StandingsPage /> },
-      { path: "bracket", element: <BracketPage /> },
+      
+      // ✅ ใช้ Component ใหม่ที่แสดงข้อมูลจริง
+      { path: "bracket", element: <PublicKnockoutBracket /> },
     ],
   },
 
@@ -86,5 +110,5 @@ const router = createBrowserRouter([
     ),
   },
 ]);
-//
+
 export default router;

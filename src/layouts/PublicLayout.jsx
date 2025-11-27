@@ -1,20 +1,17 @@
 // src/layouts/PublicLayout.jsx
-// (เวอร์ชันแก้ไข: แท็บเลื่อนได้ + ใช้ .no-scrollbar + แสดงปุ่มกลับหน้า Admin เฉพาะ admin)
+// (เวอร์ชันสำหรับ /public/... ไม่ใช้ slug แล้ว)
 
 import React from "react";
-import { NavLink, Outlet, useParams, Link } from "react-router-dom";
+import { NavLink, Outlet, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function PublicLayout() {
-  const { slug } = useParams();
-  const { user } = useAuth(); // ✅ เช็คว่าเป็น admin ไหม
-  
-  // ============ [!! START: ส่วนที่แก้ไขเรื่อง Tab !!] ============
-  // (ลบ flex-1 ออก, เพิ่ม flex-shrink-0 ให้แท็บเลื่อนในมือถือได้)
+  const { user } = useAuth();
+
   const TabLink = ({ to, children }) => (
     <NavLink
       to={to}
-      end // ให้เช็ค path แบบเป๊ะๆ
+      end
       className={({ isActive }) =>
         `flex-shrink-0 whitespace-nowrap px-4 py-3 text-center text-sm font-medium border-b-2
         ${
@@ -27,24 +24,16 @@ export default function PublicLayout() {
       {children}
     </NavLink>
   );
-  // ============ [!! END: ส่วนที่แก้ไขเรื่อง Tab !!] ============
 
   return (
-    // พื้นหลังสีเทาอ่อน
     <div className="min-h-screen bg-gray-100">
-      {/* --- 1. Header (ส่วนหัว) --- */}
+      {/* Header */}
       <header className="sticky top-0 z-10 bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 h-16 flex justify-between items-center">
-          {/* ชื่อทัวร์ */}
           <h1 className="text-lg font-bold text-indigo-700 truncate">
             Moodeng Cup 2025
-            <span className="text-gray-500 font-normal hidden md:inline">
-              {" "}
-              • {slug}
-            </span>
           </h1>
 
-          {/* ขวาสุด: แอดมินเท่านั้นที่เห็น */}
           <div className="flex items-center gap-2">
             {user && user.role === "admin" && (
               <>
@@ -63,13 +52,10 @@ export default function PublicLayout() {
         </div>
       </header>
 
-      {/* --- 2. Tabs (เมนู) [แก้ไขแล้ว] --- */}
+      {/* Tabs */}
       <nav className="sticky top-16 z-10 bg-white shadow-sm">
-        {/* เปลี่ยนจาก max-w-4xl เป็น overflow-x-auto */}
         <div className="flex overflow-x-auto no-scrollbar">
-          {/* เพิ่ม mx-auto md:justify-center เพื่อให้สวยงาม */}
           <div className="flex flex-nowrap mx-auto md:justify-center">
-            {/* Court Running มี dot แดงกระพริบ */}
             <TabLink to="running">
               <span className="relative">
                 Court Running
@@ -87,7 +73,7 @@ export default function PublicLayout() {
         </div>
       </nav>
 
-      {/* --- 3. Content (เนื้อหา) --- */}
+      {/* Content */}
       <main className="max-w-4xl mx-auto p-2 md:p-4">
         <Outlet />
       </main>

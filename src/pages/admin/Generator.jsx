@@ -98,10 +98,9 @@ export default function GeneratorPage() {
   
   // ============ [!! START: ส่วนที่แก้ไข !!] ============
   async function confirmAndGenerate() {
-    // เพิ่ม 1: เพิ่มคำเตือน "ล้างข้อมูล"
     const warning = "การยืนยันนี้จะล้างคะแนนและแมตช์รอบแบ่งกลุ่มเดิมทั้งหมดของมือนี้ (เพื่อสร้างใหม่) คุณแน่ใจหรือไม่?";
     if (!window.confirm(warning)) {
-      return; // ถ้าผู้ใช้กด Cancel
+      return;
     }
   
     try {
@@ -110,10 +109,25 @@ export default function GeneratorPage() {
         tournamentId: "default", handLevel: hand,
         groups: Object.fromEntries(Object.entries(groups).map(([L, arr]) => [L, arr.map((t) => t._id)])),
       };
+      
       const res = await API.manualGroupAndGenerate(payload);
-      alert(`สร้างแมตช์รอบแบ่งกลุ่มแล้ว: ${res.createdMatches || 0} คู่ (ข้อมูลเก่าถูกล้างแล้ว)`);
-    } catch (e) { console.error(e); alert(e.message || "สร้างกลุ่ม/แมตช์ไม่สำเร็จ");
-    } finally { setLoading(false); }
+      
+      // ✅ แก้ตรงนี้: ดึงตัวแปรใหม่มาแสดง
+      const groupCount = res.matches || 0;
+      const koCount = res.knockoutMatches || 0;
+      
+      alert(
+        `✅ ดำเนินการเสร็จสิ้น!\n` +
+        `- สร้างแมตช์แบ่งกลุ่ม: ${groupCount} คู่\n` +
+        `- สร้างโครงร่าง Knockout รอไว้: ${koCount} คู่`
+      );
+
+    } catch (e) { 
+      console.error(e); 
+      alert(e.message || "สร้างกลุ่ม/แมตช์ไม่สำเร็จ");
+    } finally { 
+      setLoading(false); 
+    }
   }
   // ============ [!! END: ส่วนที่แก้ไข !!] ============
 
