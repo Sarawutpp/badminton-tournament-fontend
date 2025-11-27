@@ -203,14 +203,7 @@ export default function PublicScheduleLongRow() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <header className="flex flex-col gap-1 mb-3 md:mb-4 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-xl md:text-2xl font-bold text-indigo-700">
-              Moodeng Cup 2025
-            </h1>
-            <p className="text-slate-600 text-xs md:text-sm">
-              ตารางการแข่งขัน (แนวยาว • หน้าละ 24 แมทช์ พร้อมลำดับแมท)
-            </p>
-          </div>
+          
 
           {/* ปุ่มเปิด/ปิดตัวกรอง สำหรับทั้ง mobile + desktop */}
           <button

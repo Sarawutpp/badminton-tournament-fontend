@@ -1,12 +1,10 @@
 // src/pages/public/Standings.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
-import { API } from "@/lib/api.js";
+import { API, teamName } from "@/lib/api.js"; // อย่าลืม import teamName มาใช้แสดงชื่อคู่แข่ง
 import { HAND_LEVEL_OPTIONS } from "@/lib/types.js";
 
 // ======= Helpers และ Hooks ย่อย =======
-// (เอา useState ออกจากตรงนี้)
-
 const useIsMobile = () => {
   const get = () =>
     typeof window !== "undefined" &&
@@ -35,6 +33,7 @@ const normalizeName = (player) => {
 };
 
 const normalizeTeam = (team) => ({
+  _id: team._id || team.id || "", // สำคัญ: ต้องเก็บ ID ไว้ใช้เทียบหาคู่แข่ง
   idCode: team.idCode || team.teamCode || "",
   teamName: team.teamName || "-",
   playerNames:
@@ -76,16 +75,173 @@ async function fetchLevelData(level) {
   return normalizeGroups(res, level);
 }
 
+// ======= Component: Pop-up ประวัติการแข่ง (ใหม่) =======
+const TeamHistoryModal = ({ team, groupName, handLevel, onClose }) => {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMatches = async () => {
+      try {
+        const res = await API.listSchedule({
+          handLevel: handLevel,
+          group: groupName,
+          pageSize: 100,
+          status: "finished",
+        });
+        
+        const allMatches = res.items || [];
+        const myMatches = allMatches.filter(m => 
+          (m.team1?._id === team._id || m.team1 === team._id) || 
+          (m.team2?._id === team._id || m.team2 === team._id)
+        );
+
+        setMatches(myMatches);
+      } catch (error) {
+        console.error("Failed to load matches", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (team) {
+      fetchMatches();
+    }
+  }, [team, groupName, handLevel]);
+
+  if (!team) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white rounded-2xl w-full max-w-sm overflow-hidden shadow-xl">
+        {/* Header */}
+        <div className="bg-indigo-600 p-4 text-white flex justify-between items-start">
+          <div>
+            <div className="text-indigo-200 text-xs mb-1">ประวัติการแข่งขัน</div>
+            <h3 className="text-lg font-bold leading-tight">{team.teamName}</h3>
+            <p className="text-xs text-indigo-100 mt-1 opacity-80">{team.playerNames}</p>
+          </div>
+          <button onClick={onClose} className="bg-white/20 hover:bg-white/30 rounded-full p-1 transition">
+             <span className="text-xl leading-none px-1">&times;</span>
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-4 bg-slate-50 min-h-[200px] max-h-[60vh] overflow-y-auto">
+          {loading ? (
+            <div className="text-center text-slate-400 py-8">กำลังโหลดข้อมูล...</div>
+          ) : matches.length === 0 ? (
+            <div className="text-center text-slate-400 py-8">ยังไม่มีข้อมูลการแข่งที่จบแล้ว</div>
+          ) : (
+            <div className="space-y-4">
+              {matches.map((match) => {
+                const isTeam1 = (match.team1?._id === team._id || match.team1 === team._id);
+                const opponent = isTeam1 ? match.team2 : match.team1;
+                
+                // คะแนนรวม (เอาไว้คำนวณ Win/Lose แต่ไม่แสดงตัวเลขแล้ว)
+                const myScore = isTeam1 ? match.score1 : match.score2;
+                const oppScore = isTeam1 ? match.score2 : match.score1;
+                
+                const isWin = myScore > oppScore;
+                const isDraw = myScore === oppScore;
+
+                // --- LOGIC ดึงคะแนนรายเซต ---
+                const sets = [];
+                const p = (v) => parseInt(v || 0, 10);
+
+                if (Array.isArray(match.sets) && match.sets.length > 0) {
+                     match.sets.forEach((s, i) => {
+                        if (s.t1 > 0 || s.t2 > 0) {
+                            sets.push({ label: `${i+1}`, t1: s.t1, t2: s.t2 });
+                        }
+                     });
+                } else if (match.set1Score1 !== undefined || match.set1Score2 !== undefined) {
+                    if (p(match.set1Score1) + p(match.set1Score2) > 0) sets.push({ label: "1", t1: match.set1Score1, t2: match.set1Score2 });
+                    if (p(match.set2Score1) + p(match.set2Score2) > 0) sets.push({ label: "2", t1: match.set2Score1, t2: match.set2Score2 });
+                    if (p(match.set3Score1) + p(match.set3Score2) > 0) sets.push({ label: "3", t1: match.set3Score1, t2: match.set3Score2 });
+                }
+
+                return (
+                  <div key={match._id} className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-row items-start justify-between">
+                    {/* ฝั่งซ้าย: ชื่อคู่แข่ง */}
+                    <div className="flex-1 min-w-0 pt-1 mr-2">
+                      <div className="text-[10px] text-slate-400 uppercase tracking-wide mb-0.5">เจอคู่แข่ง</div>
+                      <div className="font-bold text-slate-800 text-base leading-tight">
+                        {teamName(opponent)}
+                      </div>
+                    </div>
+                    
+                    {/* ฝั่งขวา: ผลและคะแนนรายเซต */}
+                    <div className="text-right flex flex-col items-end min-w-[110px]">
+                      
+                      {/* 1. บรรทัดแรก: เหลือแค่ WIN/LOSE (ลบคะแนนรวมออกแล้ว) */}
+                      <div className="flex items-center justify-end gap-2 mb-2">
+                         <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide ${
+                           isWin ? "bg-emerald-100 text-emerald-700" :
+                           isDraw ? "bg-gray-100 text-gray-700" :
+                           "bg-rose-100 text-rose-700"
+                         }`}>
+                           {isWin ? "WIN" : isDraw ? "DRAW" : "LOSE"}
+                         </span>
+                         {/* ตรงนี้ลบ span ที่แสดง {myScore}-{oppScore} ออกไปแล้ว */}
+                      </div>
+
+                      {/* 2. บรรทัดต่อๆ มา: รายละเอียดเซต */}
+                      {sets.length > 0 ? (
+                        <div className="flex flex-col gap-1 w-full"> 
+                           {sets.map((s, idx) => {
+                             const mySet = isTeam1 ? s.t1 : s.t2;
+                             const oppSet = isTeam1 ? s.t2 : s.t1;
+                             const iWonSet = mySet > oppSet;
+
+                             return (
+                               <div key={idx} className="flex items-center justify-end gap-3 text-sm">
+                                 <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">
+                                    Set {s.label}
+                                 </span>
+                                 <span className={`font-mono font-medium ${iWonSet ? "text-slate-900" : "text-slate-500"}`}>
+                                   {mySet}-{oppSet}
+                                 </span>
+                               </div>
+                             );
+                           })}
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-300 italic">
+                           (No details)
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        
+        {/* Footer Close */}
+        <div className="p-3 bg-white border-t text-center">
+            <button onClick={onClose} className="text-slate-500 text-sm hover:text-slate-800 w-full py-2 font-medium">
+                ปิดหน้าต่าง
+            </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ======= Component หลัก =======
 
 const StandingsPage = () => {
-  // ✅ ย้าย state มาไว้ใน component
   const [recalculating, setRecalculating] = useState(false);
   
   const [active, setActive] = useState(HAND_LEVEL_OPTIONS[0]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [groupsData, setGroupsData] = useState({ level: "", groups: [] });
+
+  // State สำหรับ Modal
+  const [selectedTeamData, setSelectedTeamData] = useState(null); // { team, groupName }
 
   const isMobile = useIsMobile();
   const location = useLocation();
@@ -137,7 +293,6 @@ const StandingsPage = () => {
     }
   };
 
-  // ✅ เพิ่มฟังก์ชัน handleClear ที่ขาดหายไป
   const handleClear = async () => {
     if (!isAdminRoute || !active?.value) return;
     
@@ -175,87 +330,100 @@ const StandingsPage = () => {
   const groups = groupsData.groups || [];
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div>
-          <h1 className="text-xl md:text-2xl font-bold text-slate-900">
-            ตารางคะแนน — รอบแบ่งกลุ่ม
-          </h1>
-          <p className="text-sm text-slate-500">
-            คิดคะแนน 3-1-0 และจัดอันดับตามแต้ม ผลต่างเซ็ต ผลต่างแต้ม
-          </p>
-        </div>
-        <div className="flex flex-col md:flex-row md:items-center gap-2">
-          <div className="inline-flex rounded-full bg-slate-100 p-1">
-            {levelChoices.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => setActive(opt)}
-                className={
-                  "px-3 py-1 text-xs md:text-sm rounded-full font-medium transition " +
-                  (opt.value === active.value
-                    ? "bg-white shadow text-slate-900"
-                    : "text-slate-500 hover:text-slate-800")
-                }
-              >
-                {opt.label}
-              </button>
-            ))}
+    <>
+      <div className="p-4 md:p-6 space-y-4">
+        <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-slate-900">
+              ตารางคะแนน — รอบแบ่งกลุ่ม
+            </h1>
+            <p className="text-sm text-slate-500">
+              คิดคะแนน 3-1-0 และจัดอันดับตามแต้ม ผลต่างเซ็ต ผลต่างแต้ม
+            </p>
           </div>
-
-          {isAdminRoute && (
-            <div className="flex gap-2 mt-2 md:mt-0">
-              <button
-                type="button"
-                onClick={handleRecalculate}
-                disabled={loading || recalculating}
-                className="px-4 py-2 rounded-full bg-indigo-600 text-white text-xs md:text-sm font-medium shadow-sm hover:bg-indigo-700 disabled:opacity-50"
-              >
-                {recalculating ? "กำลังคำนวณ..." : "🔄 คำนวณใหม่"}
-              </button>
-
-              <button
-                type="button"
-                onClick={handleClear}
-                disabled={loading || clearing}
-                className="px-4 py-2 rounded-full bg-red-100 text-red-600 border border-red-200 text-xs md:text-sm font-medium shadow-sm hover:bg-red-200 disabled:opacity-50"
-              >
-                {clearing ? "..." : "ล้างค่า"}
-              </button>
+          <div className="flex flex-col md:flex-row md:items-center gap-2">
+            <div className="inline-flex rounded-full bg-slate-100 p-1">
+              {levelChoices.map((opt) => (
+                <button
+                  key={opt.value}
+                  onClick={() => setActive(opt)}
+                  className={
+                    "px-3 py-1 text-xs md:text-sm rounded-full font-medium transition " +
+                    (opt.value === active.value
+                      ? "bg-white shadow text-slate-900"
+                      : "text-slate-500 hover:text-slate-800")
+                  }
+                >
+                  {opt.label}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
-      </header>
 
-      {loading && (
-        <div className="p-4 text-center text-slate-500">กำลังโหลดข้อมูล...</div>
-      )}
-      {!loading && error && (
-        <div className="p-4 text-center text-red-500 text-sm">{error}</div>
-      )}
-      {!loading && !error && groups.length === 0 && (
-        <div className="p-4 text-center text-slate-500">
-          ยังไม่มีกลุ่มในระดับมือนี้
-        </div>
-      )}
+            {isAdminRoute && (
+              <div className="flex gap-2 mt-2 md:mt-0">
+                <button
+                  type="button"
+                  onClick={handleRecalculate}
+                  disabled={loading || recalculating}
+                  className="px-4 py-2 rounded-full bg-indigo-600 text-white text-xs md:text-sm font-medium shadow-sm hover:bg-indigo-700 disabled:opacity-50"
+                >
+                  {recalculating ? "กำลังคำนวณ..." : "🔄 คำนวณใหม่"}
+                </button>
 
-      {!loading &&
-        !error &&
-        groups.map((group) => (
-          <GroupSection
-            key={group.groupName}
-            group={group}
-            isMobile={isMobile}
-            isAdminRoute={isAdminRoute}
-          />
-        ))}
-    </div>
+                <button
+                  type="button"
+                  onClick={handleClear}
+                  disabled={loading || clearing}
+                  className="px-4 py-2 rounded-full bg-red-100 text-red-600 border border-red-200 text-xs md:text-sm font-medium shadow-sm hover:bg-red-200 disabled:opacity-50"
+                >
+                  {clearing ? "..." : "ล้างค่า"}
+                </button>
+              </div>
+            )}
+          </div>
+        </header>
+
+        {loading && (
+          <div className="p-4 text-center text-slate-500">กำลังโหลดข้อมูล...</div>
+        )}
+        {!loading && error && (
+          <div className="p-4 text-center text-red-500 text-sm">{error}</div>
+        )}
+        {!loading && !error && groups.length === 0 && (
+          <div className="p-4 text-center text-slate-500">
+            ยังไม่มีกลุ่มในระดับมือนี้
+          </div>
+        )}
+
+        {!loading &&
+          !error &&
+          groups.map((group) => (
+            <GroupSection
+              key={group.groupName}
+              group={group}
+              isMobile={isMobile}
+              isAdminRoute={isAdminRoute}
+              onSelectTeam={(team) => setSelectedTeamData({ team, groupName: group.groupName })}
+            />
+          ))}
+      </div>
+
+      {/* Render Modal */}
+      {selectedTeamData && (
+        <TeamHistoryModal 
+           team={selectedTeamData.team} 
+           groupName={selectedTeamData.groupName}
+           handLevel={active.value}
+           onClose={() => setSelectedTeamData(null)}
+        />
+      )}
+    </>
   );
 };
 
-// ======= Group + Table / Card (ส่วนล่างเหมือนเดิมทุกประการ) =======
+// ======= Group + Table / Card =======
 
-const GroupSection = ({ group, isMobile, isAdminRoute }) => (
+const GroupSection = ({ group, isMobile, isAdminRoute, onSelectTeam }) => (
   <section className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden mb-4">
     <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50">
       <div className="flex items-center gap-3">
@@ -274,7 +442,7 @@ const GroupSection = ({ group, isMobile, isAdminRoute }) => (
     </div>
 
     {isMobile ? (
-      <CardsMobile group={group} isAdminRoute={isAdminRoute} />
+      <CardsMobile group={group} isAdminRoute={isAdminRoute} onSelectTeam={onSelectTeam} />
     ) : (
       <TableDesktop group={group} isAdminRoute={isAdminRoute} />
     )}
@@ -282,6 +450,7 @@ const GroupSection = ({ group, isMobile, isAdminRoute }) => (
 );
 
 const TableDesktop = ({ group, isAdminRoute }) => (
+  // (ส่วน Desktop เหมือนเดิม ไม่เปลี่ยนแปลง)
   <div className="overflow-x-auto">
     <table className="w-full text-sm">
       <thead className="bg-slate-50 text-slate-600">
@@ -411,7 +580,8 @@ const TableDesktop = ({ group, isAdminRoute }) => (
   </div>
 );
 
-const CardsMobile = ({ group, isAdminRoute }) => (
+// EDIT: รับ prop onSelectTeam มา
+const CardsMobile = ({ group, isAdminRoute, onSelectTeam }) => (
   <div className="space-y-3 p-3">
     {group.teams.map((team, index) => {
       const scoreDiff =
@@ -421,7 +591,8 @@ const CardsMobile = ({ group, isAdminRoute }) => (
       return (
         <article
           key={team._id || `${team.teamName}-${index}`}
-          className="border border-slate-200 rounded-2xl bg-white shadow-sm p-3 space-y-2"
+          onClick={() => onSelectTeam && onSelectTeam(team)} // กดแล้วเรียกฟังก์ชันเลือกทีม
+          className="border border-slate-200 rounded-2xl bg-white shadow-sm p-3 space-y-2 cursor-pointer transition-all active:scale-[0.98] hover:border-indigo-300 hover:shadow-md"
         >
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -486,13 +657,7 @@ const CardsMobile = ({ group, isAdminRoute }) => (
             </div>
           )}
 
-          <div className="flex justify-between text-[11px] text-slate-500 pt-1 border-t mt-1">
-            <span>
-              M1: {team.matchScores?.[0] ?? "-"} / M2:{" "}
-              {team.matchScores?.[1] ?? "-"} / M3:{" "}
-              {team.matchScores?.[2] ?? "-"}
-            </span>
-          </div>
+          {/* EDIT: เอา Footer M1/M2 ออกไปแล้ว */}
         </article>
       );
     })}
