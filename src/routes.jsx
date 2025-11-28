@@ -30,6 +30,7 @@ import PublicCourtRunning from "./pages/public/PublicCourtRunning.jsx";
 
 // ✅ เปลี่ยนมา import หน้าใหม่แทน Bracket เดิม
 import PublicKnockoutBracket from "./pages/public/PublicKnockoutBracket.jsx";
+import PrintBatchPage from "./pages/admin/PrintBatchPage";
 
 const router = createBrowserRouter([
   // 🏠 Root -> จะพาไป /public ก่อน
@@ -52,6 +53,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <Navigate to="standings" replace /> },
 
+      { path: "print-batch", element: <PrintBatchPage /> },
       { path: "players", element: <PlayersPage /> },
       { path: "teams", element: <TeamsPage /> },
       { path: "generator", element: <GeneratorPage /> },
@@ -79,6 +81,8 @@ const router = createBrowserRouter([
         path: "knockout",
         element: <Navigate to="knockout/bracket" replace />,
       },
+
+      
     ],
   },
 

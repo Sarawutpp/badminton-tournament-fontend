@@ -29,6 +29,7 @@ const NAV = [
     label: "กรอกคะแนน Knockout",
     icon: "🏆",
   },
+  { to: "/admin/print-batch", label: "พิมพ์ใบคะแนน", icon: "🖨️" },
 ];
 
 function useMobileMenu() {
