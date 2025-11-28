@@ -62,7 +62,7 @@ jobs:
          script: |
           BASE=/var/www/moodeng-fe
           REL=${BASE}/releases/${GITHUB_SHA}
-          ln -sfnT ${REL} ${BASE}/current
+          ln -sfnT ${REL}/dist ${BASE}/current
           sudo /usr/sbin/nginx -t
           sudo /usr/sbin/nginx -s reload
           echo "Activated -> ${REL}"
