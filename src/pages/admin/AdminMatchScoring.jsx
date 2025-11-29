@@ -38,7 +38,7 @@ export default function AdminMatchScoringPage() {
     handLevel: "",
     group: "",
     q: "",
-    roundType: "group",
+    roundType: "",
     onlyFinished: false,
   });
 
@@ -464,7 +464,8 @@ function MatchScoreCardMobile({ m, loadData }) {
           <div className="text-xs font-bold text-indigo-600">
             #{m.matchNo} <span className="text-slate-400 font-normal">| {m.court || '-'}</span>
           </div>
-          <div className="text-[10px] text-slate-400">{m.matchId}</div>
+          {/* ❌ ลบส่วนนี้ออกตามคำขอ */}
+          {/* <div className="text-[10px] text-slate-400">{m.matchId}</div> */}
         </div>
         <div>{statusBadge}</div>
       </div>
@@ -618,9 +619,10 @@ function MatchScoreRowDesktop({ m, loadData }) {
     <tr className="border-t align-middle hover:bg-slate-50/50 transition-colors">
       <td className="p-2 text-center">
         <div className="font-bold text-slate-700">{m.matchNo ?? "-"}</div>
-        <div className="text-[10px] text-slate-400 font-mono">
+        {/* ❌ ลบส่วนนี้ออกตามคำขอ */}
+        {/* <div className="text-[10px] text-slate-400 font-mono">
           {m.matchId?.slice(-4)}
-        </div>
+        </div> */}
       </td>
       <td className="p-2">
         <div className="font-semibold text-slate-800 text-sm">
@@ -635,9 +637,10 @@ function MatchScoreRowDesktop({ m, loadData }) {
         <div className="font-bold text-indigo-600 text-xs">
           {handShort(m.handLevel)}
         </div>
-        {m.group && (
+        {/* ❌ ลบส่วนนี้ออกตามคำขอ */}
+        {/* {m.group && (
           <div className="text-[10px] text-slate-500">Grp {m.group}</div>
-        )}
+        )} */}
       </td>
       <td className="p-2 text-center text-xs text-slate-600">
         {roundLabel(m)}

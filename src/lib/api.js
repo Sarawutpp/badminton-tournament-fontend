@@ -120,6 +120,9 @@ export const API = {
     if (group) qs.set("group", group);
     if (roundType) qs.set("roundType", roundType);
 
+    // ✅✅✅ แก้ไข: เพิ่ม pageSize เยอะๆ เพื่อดึงข้อมูลมาให้ครบ ✅✅✅
+    qs.set("pageSize", 10000);
+
     const base = await request(
       `/matches${qs.toString() ? `?${qs.toString()}` : ""}`
     );
