@@ -212,7 +212,7 @@ export const API = {
       body: JSON.stringify(body),
     }),
 
-  // ===== Standings =====
+  // ===== Standings =====11
   getStandings: (hand) =>
     request(
       `/standings${hand ? `?handLevel=${encodeURIComponent(hand)}` : ""}`
