@@ -61,7 +61,7 @@ jobs:
          script_stop: true
          script: |
           BASE=/var/www/moodeng-fe
-          REL=${BASE}/releases/${GITHUB_SHA}
+          REL=${BASE}/releases/${{ github.sha }}
           ln -sfnT ${REL} ${BASE}/current 
           sudo /usr/sbin/nginx -t
           sudo /usr/sbin/nginx -s reload
