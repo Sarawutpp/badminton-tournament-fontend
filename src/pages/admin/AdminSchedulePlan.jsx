@@ -1,22 +1,15 @@
 // src/pages/admin/AdminSchedulePlan.jsx
-// (เวอร์ชันออกแบบใหม่ - Master List Sorter + กันพัง data.items)
+// (เวอร์ชัน UI: Queue/Draft Style ตามภาพ)
 
 import React from "react";
 import { API, teamName } from "@/lib/api.js";
-import { HAND_LEVEL_OPTIONS } from "@/lib/types.js";
+import { HAND_LEVEL_OPTIONS } from "@/lib/types.js"; 
 
 const pageSize = 5000;
 
-// ---- helper แปลงผลลัพธ์จาก API ให้เป็นรูปเดียวกันเสมอ ----
+// ---- Helpers ----
 function normalizeScheduleResponse(res) {
-  if (Array.isArray(res)) {
-    return {
-      items: res,
-      total: res.length,
-      page: 1,
-      pageSize,
-    };
-  }
+  if (Array.isArray(res)) return { items: res, total: res.length, page: 1, pageSize };
   if (res && Array.isArray(res.items)) {
     return {
       items: res.items,
@@ -25,12 +18,7 @@ function normalizeScheduleResponse(res) {
       pageSize: Number(res.pageSize ?? pageSize),
     };
   }
-  return {
-    items: [],
-    total: 0,
-    page: 1,
-    pageSize,
-  };
+  return { items: [], total: 0, page: 1, pageSize };
 }
 
 function formatTime(isoString) {
@@ -47,69 +35,42 @@ function formatTime(isoString) {
   }
 }
 
-function Pagination({ page, pageSize, total, onPageChange, loading }) {
-  return null; // ตอนนี้ยังไม่ได้ใช้ pagination จริง
-}
-
-// ============ Modal สำหรับตั้งค่า Session ============
-
-function SettingsModal({ isOpen, onClose, initialConfig, onSave }) {
+// ============ Component: Settings Modal ============
+function SettingsModal({ isOpen, onClose, initialConfig, onSave, defaultList }) {
   const [tempConfig, setTempConfig] = React.useState(initialConfig);
-
-  React.useEffect(() => {
-    setTempConfig(initialConfig);
-  }, [initialConfig, isOpen]);
+  React.useEffect(() => { setTempConfig(initialConfig); }, [initialConfig, isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSave = () => {
-    onSave(tempConfig);
-    onClose();
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-50 transition-opacity duration-300">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg transform transition-all duration-300 scale-100">
-        <div className="flex justify-between items-center p-4 border-b">
-          <h3 className="text-lg font-bold text-indigo-700">
-            ตั้งค่าการจัดเรียง (Master Session Order)
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-700 text-2xl leading-none"
-          >
-            &times;
-          </button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 transition-opacity">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden animate-in fade-in zoom-in duration-200">
+        <div className="flex justify-between items-center p-4 border-b bg-slate-50">
+          <h3 className="text-lg font-bold text-indigo-700">⚙️ ตั้งค่าการจัดเรียง (Master Session Order)</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-2xl leading-none">&times;</button>
         </div>
-
         <div className="p-4">
           <p className="text-xs text-slate-600 mb-2">
-            ใส่ประเภทมือที่ต้องการให้แข่งก่อน (1 บรรทัด = 1 เซสชั่น) คั่นด้วยจุลภาค (,)
-            <br />
-            เช่น: BABY, BGMix (เซสชั่น 1) บรรทัดถัดไป BG-, BGMen (เซสชั่น 2)
+            ใส่ประเภทมือที่ต้องการให้แข่งก่อน (1 บรรทัด = 1 เซสชั่น)
           </p>
           <textarea
-            className="border rounded px-2 py-2 text-sm w-full font-mono bg-slate-50"
-            rows={6}
+            className="border rounded px-3 py-2 text-sm w-full font-mono bg-slate-50 focus:ring-2 focus:ring-indigo-200 outline-none"
+            rows={8}
             value={tempConfig}
             onChange={(e) => setTempConfig(e.target.value)}
-            placeholder="BABY, BGMix&#10;BG-, BGMen&#10;P-, P+"
           />
+          <div className="mt-2 text-right">
+             <button 
+               onClick={() => { if(window.confirm("รีเซ็ตเป็นค่าเริ่มต้น?")) setTempConfig(defaultList); }}
+               className="text-xs text-indigo-600 underline hover:text-indigo-800"
+             >
+               คืนค่าเริ่มต้น
+             </button>
+          </div>
         </div>
-
-        <div className="flex justify-end gap-2 p-4 bg-gray-50 rounded-b-2xl">
-          <button
-            onClick={onClose}
-            className="border rounded px-4 py-2 text-sm font-semibold text-gray-700 bg-white hover:bg-gray-100"
-          >
-            ยกเลิก
-          </button>
-          <button
-            onClick={handleSave}
-            className="border rounded px-4 py-2 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700"
-          >
-            บันทึกค่า
-          </button>
+        <div className="flex justify-end gap-2 p-4 bg-slate-50 rounded-b-2xl border-t">
+          <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 rounded-lg">ยกเลิก</button>
+          <button onClick={() => { onSave(tempConfig); onClose(); }} className="px-4 py-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg">บันทึกค่า</button>
         </div>
       </div>
     </div>
@@ -120,482 +81,392 @@ function SettingsModal({ isOpen, onClose, initialConfig, onSave }) {
 
 export default function AdminSchedulePlan() {
   const [hand, setHand] = React.useState("");
-  const [status, setStatus] = React.useState(""); // ให้ default = ทุกสถานะ
+  const [status, setStatus] = React.useState("");
   const [q, setQ] = React.useState("");
-  const [data, setData] = React.useState({
-    items: [],
-    total: 0,
-    page: 1,
-    pageSize,
-  });
+  const [data, setData] = React.useState({ items: [], total: 0, page: 1, pageSize });
+  
   const [loading, setLoading] = React.useState(false);
-  const [err, setErr] = React.useState("");
   const [saving, setSaving] = React.useState(false);
+  const [err, setErr] = React.useState("");
+  const [selectedIds, setSelectedIds] = React.useState(new Set());
 
-  const defaultSessionConfig = "BABY, BGMix\nBG-, BGMen";
-  const [sessionConfig, setSessionConfig] = React.useState(
-    defaultSessionConfig
-  );
+  // Config State
+  const defaultFromConst = HAND_LEVEL_OPTIONS.map(opt => opt.value).join("\n");
+  const [sessionConfig, setSessionConfig] = React.useState(() => {
+    try {
+      const saved = localStorage.getItem("scheduleSessionConfig");
+      return saved ? saved : defaultFromConst;
+    } catch (e) { return defaultFromConst; }
+  });
+  React.useEffect(() => { localStorage.setItem("scheduleSessionConfig", sessionConfig); }, [sessionConfig]);
   const [showSettings, setShowSettings] = React.useState(false);
 
-  const load = async (page = 1) => {
+  // ============ Logic Load ============
+  const load = async () => {
     try {
       setLoading(true);
       setErr("");
       const res = await API.listSchedule({
-        page: 1,
-        pageSize,
-        handLevel: hand || undefined,
-        status: status || undefined,
-        q: q || undefined,
-        sort: "matchNo", // ใช้ลำดับหลักจาก matchNo
+        page: 1, pageSize,
+        handLevel: hand || undefined, status: status || undefined, q: q || undefined,
       });
 
-      const norm = normalizeScheduleResponse(res);
-      setData(norm);
-    } catch (e) {
-      console.error(e);
-      setErr(e.message || "โหลดข้อมูลไม่สำเร็จ");
-      setData({
-        items: [],
-        total: 0,
-        page: 1,
-        pageSize,
+      let rawItems = [];
+      if (Array.isArray(res)) rawItems = res;
+      else if (res && Array.isArray(res.items)) rawItems = res.items;
+
+      // Logic: มี Order อยู่บน (เรียงตาม Order), ไม่มี Order อยู่ล่าง (เรียงตาม MatchNo)
+      const sortedItems = rawItems.sort((a, b) => {
+        const orderA = Number(a.orderIndex) || 0;
+        const orderB = Number(b.orderIndex) || 0;
+        if (orderA > 0 && orderB === 0) return -1; 
+        if (orderA === 0 && orderB > 0) return 1;  
+        if (orderA > 0 && orderB > 0) return orderA - orderB;
+        return (Number(a.matchNo) || 0) - (Number(b.matchNo) || 0);
       });
-    } finally {
-      setLoading(false);
-    }
+
+      const norm = normalizeScheduleResponse({ ...res, items: sortedItems });
+      setData(norm);
+      setSelectedIds(new Set()); 
+    } catch (e) { console.error(e); setErr(e.message || "โหลดข้อมูลไม่สำเร็จ"); } 
+    finally { setLoading(false); }
   };
 
-  React.useEffect(() => {
-    load(1);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hand, status, q]);
+  React.useEffect(() => { load(); }, [hand, status, q]);
+  const items = data.items || [];
+  
+  // นับจำนวน Unsorted เพื่อแสดงใน Divider
+  const unsortedCount = items.filter(i => !i.orderIndex).length;
 
-  // ให้มีตัวแปร items / total ที่กัน undefined แล้วใช้ตลอดด้านล่าง
-  const items = Array.isArray(data?.items)
-    ? data.items
-    : Array.isArray(data)
-    ? data
-    : [];
-  const total = Number(data?.total ?? items.length);
+  // ============ Selection & Helper Logic ============
+  const toggleSelect = (id) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    setSelectedIds(next);
+  };
+  const toggleSelectAll = () => {
+    if (selectedIds.size === items.length && items.length > 0) setSelectedIds(new Set());
+    else setSelectedIds(new Set(items.map((x) => x._id)));
+  };
 
-  function move(index, dir) {
-    const arr = [...items];
-    const j = index + dir;
-    if (j < 0 || j >= arr.length) return;
-    [arr[index], arr[j]] = [arr[j], arr[index]];
-    setData((d) => ({ ...d, items: arr }));
-  }
-
-  // ============ Auto Sort (ตามรอบ + session) ============
-
-  function handleAutoSort() {
-    if (!items.length) return;
-    if (
-      !window.confirm(
-        "ต้องการจัดเรียงอัตโนมัติ (ตามรอบ) ใช่หรือไม่?\nหมายเหตุ: ต้องกด Save Master Order เพื่อบันทึกถาวร"
-      )
-    )
-      return;
-
-    const handLevelGroup = {};
+  const getHandConfigMap = () => {
+    const map = {};
     try {
-      sessionConfig.split("\n").forEach((line, sessionIndex) => {
-        line.split(",").forEach((hand) => {
-          const cleanHand = hand.trim();
-          if (cleanHand) {
-            handLevelGroup[cleanHand] = sessionIndex + 1;
-          }
+      sessionConfig.split("\n").forEach((line, sessionIdx) => {
+        line.split(",").forEach((h, handIdx) => {
+          const clean = h.trim();
+          if (clean) map[clean] = { session: sessionIdx + 1, index: handIdx + 1 };
         });
       });
-    } catch (e) {
-      console.error("Error parsing session config:", e);
-      alert("Error: ไม่สามารถอ่านค่า Master Session Order ได้");
-      return;
-    }
-
-    const getHandGroup = (m) => handLevelGroup[m.handLevel] || 99;
-
-    const stageOrder = (m) => {
+    } catch (e) { }
+    return map;
+  };
+  const getHandScore = (m, handMap) => {
+    const h = String(m.handLevel || "");
+    if (handMap[h]) return handMap[h];
+    for (const k in handMap) { if (h.includes(k) || k.includes(h)) return handMap[k]; }
+    return { session: 99, index: 99 };
+  };
+  const getStageType = (m) => {
       const s = String(m.stage || m.round || "").toLowerCase();
-      if (s.includes("group")) return 1;
-      if (s.includes("round of 16") || s.includes("r16")) return 2;
+      if (s.includes("group")) return 1; 
+      return 2; 
+  };
+  const getKnockoutPriority = (m) => {
+      const s = String(m.stage || "").toLowerCase();
+      if (s.includes("32")) return 1; if (s.includes("16")) return 2;
       if (s.includes("quarter") || s.includes("qf")) return 3;
       if (s.includes("semi") || s.includes("sf")) return 4;
       if (s.includes("final")) return 5;
       return 99;
-    };
+  };
 
-    const toNum = (v) => {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : 0;
-    };
-
-    const getGroupRound = (m) => {
-      let round =
-        toNum(m.groupRound) ||
-        toNum(m.roundNo) ||
-        toNum(m.groupMatchNo) ||
-        toNum(m.groupOrder);
-      if (round !== 0) return round;
-      if (m.matchId) {
-        try {
-          const match = String(m.matchId).match(/-R(\d+)-/);
-          if (match && match[1]) {
-            round = toNum(match[1]);
-            if (round !== 0) return round;
-          }
-        } catch (e) {}
-      }
-      return 99;
-    };
-
-    const sorted = [...items].sort((a, b) => {
-      const groupA = getHandGroup(a);
-      const groupB = getHandGroup(b);
-      if (groupA !== groupB) return groupA - groupB;
-
-      let c = stageOrder(a) - stageOrder(b);
-      if (c !== 0) return c;
-
-      if (stageOrder(a) === 1) {
-        const roundA = getGroupRound(a);
-        const roundB = getGroupRound(b);
-        if (roundA !== roundB) return roundA - roundB;
-
-        c = String(a.handLevel || "").localeCompare(
-          String(b.handLevel || "")
-        );
-        if (c !== 0) return c;
-
-        c = String(a.group || "").localeCompare(String(b.group || ""));
-        if (c !== 0) return c;
-      } else {
-        c = String(a.handLevel || "").localeCompare(
-          String(b.handLevel || "")
-        );
-        if (c !== 0) return c;
-      }
-
-      return toNum(a.matchNo) - toNum(b.matchNo);
-    });
-
-    setData((d) => ({ ...d, items: sorted }));
-    alert(
-      "จัดเรียงอัตโนมัติสำเร็จ!\nกรุณาตรวจสอบและกด 'Save Master Order' เพื่อยืนยันการบันทึก"
-    );
-  }
-
-  // ============ Auto Time (35 นาที / 14 แมท) ============
-
-  async function handleAutoTime() {
+  // ============ Sort Functions ============
+  function handleGlobalAutoSort() {
     if (!items.length) return;
-
-    const ok = window.confirm(
-      "ต้องการกำหนดเวลาคาดการณ์อัตโนมัติหรือไม่?\n" +
-        "- เริ่มจาก 09:00\n" +
-        "- 1 slot = 14 แมท\n" +
-        "- แต่ละ slot เพิ่ม 35 นาที (เช่น 09:00, 09:35, 10:10, ...)"
-    );
-    if (!ok) return;
-
-    setSaving(true);
-    setErr("");
-
-    try {
-      // Ensure the current master order is saved before assigning times
-      const orderedIds = items.map((m) => m._id);
-      if (orderedIds.length) {
-        await API.reorderMatches({ orderedIds });
-      }
-
-      const BASE_HOUR = 9;
-      const BASE_MINUTE = 0;
-      const SLOT_MINUTES = 35;
-      const MATCH_PER_SLOT = 14;
-
-      const today = new Date();
-
-      const tasks = items.map((m, index) => {
-        const slotIndex = Math.floor(index / MATCH_PER_SLOT);
-        const plusMinutes = SLOT_MINUTES * slotIndex;
-
-        const base = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          today.getDate(),
-          BASE_HOUR,
-          BASE_MINUTE,
-          0,
-          0
-        );
-        const dt = new Date(base.getTime() + plusMinutes * 60 * 1000);
-
-        return API.updateSchedule(m._id, {
-          scheduledAt: dt.toISOString(),
-        });
-      });
-
-      await Promise.all(tasks);
-      await load(data.page);
-      alert("กำหนดเวลาอัตโนมัติเรียบร้อยแล้ว 🎉");
-    } catch (e) {
-      console.error(e);
-      setErr(e.message || "กำหนดเวลาอัตโนมัติไม่สำเร็จ");
-    } finally {
-      setSaving(false);
-    }
+    if (!window.confirm("⚠️ ต้องการจัดเรียงใหม่ 'ทั้งกระดาน' (Group สลับมือ / KO เรียงมือ)?")) return;
+    const handMap = getHandConfigMap();
+    const sorted = [...items].sort((a, b) => sortCompare(a, b, handMap));
+    setData({ ...data, items: sorted });
   }
 
-  // ============ Save Order ============
+  function handleAutoSortSelected() {
+    if (selectedIds.size === 0) { alert("เลือกรายการก่อน"); return; }
+    if (!window.confirm(`จัดเรียงเฉพาะ ${selectedIds.size} รายการที่เลือก?`)) return;
+    const currentItems = [...items];
+    const indices = []; const toSort = [];
+    currentItems.forEach((item, index) => { if (selectedIds.has(item._id)) { indices.push(index); toSort.push(item); } });
+    const handMap = getHandConfigMap();
+    toSort.sort((a, b) => sortCompare(a, b, handMap));
+    const newItems = [...currentItems];
+    indices.forEach((originalIndex, i) => { newItems[originalIndex] = toSort[i]; });
+    setData({ ...data, items: newItems });
+  }
+
+  function sortCompare(a, b, handMap) {
+    const infoA = getHandScore(a, handMap);
+    const infoB = getHandScore(b, handMap);
+    if (infoA.session !== infoB.session) return infoA.session - infoB.session;
+    const stageA = getStageType(a); const stageB = getStageType(b);
+    if (stageA !== stageB) return stageA - stageB;
+    if (stageA === 1) { // Group
+        const rA = Number(a.groupRound || a.roundNo || 0); const rB = Number(b.groupRound || b.roundNo || 0);
+        if (rA !== rB) return rA - rB;
+        if (infoA.index !== infoB.index) return infoA.index - infoB.index;
+        const nA = String(a.group || ""); const nB = String(b.group || "");
+        if (nA !== nB) return nA.localeCompare(nB);
+    }
+    if (stageA === 2) { // KO
+        if (infoA.index !== infoB.index) return infoA.index - infoB.index;
+        const kA = getKnockoutPriority(a); const kB = getKnockoutPriority(b);
+        if (kA !== kB) return kA - kB;
+    }
+    return (Number(a.matchNo) || 0) - (Number(b.matchNo) || 0);
+  }
+
+  function moveBulk(action) {
+    if (selectedIds.size === 0) return;
+    let currentItems = [...items];
+    const selected = currentItems.filter((item) => selectedIds.has(item._id));
+    const unselected = currentItems.filter((item) => !selectedIds.has(item._id));
+    let newItems = [];
+    if (action === "top") newItems = [...selected, ...unselected];
+    else if (action === "bottom") newItems = [...unselected, ...selected];
+    else if (action === "up") {
+        newItems = [...currentItems];
+        for (let i = 1; i < newItems.length; i++) {
+            if (selectedIds.has(newItems[i]._id) && !selectedIds.has(newItems[i-1]._id)) {
+                [newItems[i-1], newItems[i]] = [newItems[i], newItems[i-1]];
+            }
+        }
+    } else if (action === "down") {
+        newItems = [...currentItems];
+        for (let i = newItems.length - 2; i >= 0; i--) {
+            if (selectedIds.has(newItems[i]._id) && !selectedIds.has(newItems[i+1]._id)) {
+                [newItems[i+1], newItems[i]] = [newItems[i], newItems[i+1]];
+            }
+        }
+    }
+    setData({ ...data, items: newItems });
+  }
 
   async function saveOrder() {
     setSaving(true);
-    setErr("");
     try {
       const orderedIds = items.map((m) => m._id);
-      const res = await API.reorderMatches({
-        orderedIds,
-      });
-      alert(`บันทึกลำดับใหม่ ${res.updated} แมทช์`);
-      await load(data.page);
-    } catch (e) {
-      console.error(e);
-      setErr(e.message || "บันทึกลำดับไม่สำเร็จ");
-    } finally {
-      setSaving(false);
-    }
+      await API.reorderMatches({ orderedIds });
+      await load(); 
+      alert(`✅ บันทึกเรียบร้อย (${items.length} รายการ)`);
+    } catch (e) { alert("บันทึกไม่สำเร็จ: " + e.message); } 
+    finally { setSaving(false); }
   }
 
-  async function saveOneTime(matchId, timeString) {
-    let v = timeString.trim();
-    if (!v) return;
-
-    // รองรับ 9.00, 9, 09, 09:30 ฯลฯ
-    v = v.replace(".", ":");
-    if (/^\d{1,2}$/.test(v)) {
-      v = v + ":00";
-    }
-
-    if (!/^\d{1,2}:\d{2}$/.test(v)) {
-      setErr("กรอกเวลาในรูปแบบ HH:MM เช่น 9:00 หรือ 09:30");
-      return;
-    }
-
-    const [hh, mm] = v.split(":");
-    const d = new Date();
-    const iso = new Date(
-      d.getFullYear(),
-      d.getMonth(),
-      d.getDate(),
-      Number(hh),
-      Number(mm)
-    ).toISOString();
-
+  async function handleAutoTime() {
+    if (!window.confirm("เติมเวลาอัตโนมัติ? (เริ่ม 09:00, +35 นาที/14 คู่)")) return;
+    setSaving(true);
     try {
-      await API.updateSchedule(matchId, { scheduledAt: iso });
-    } catch (e) {
-      console.error("Save time failed:", e);
-      setErr(`อัปเดตเวลาไม่สำเร็จ`);
-    }
+      const orderedIds = items.map((m) => m._id);
+      if (orderedIds.length) await API.reorderMatches({ orderedIds });
+      const BASE_HOUR = 9; const BASE_MINUTE = 0; const SLOT_MINUTES = 35; const MATCH_PER_SLOT = 14;
+      const today = new Date();
+      const tasks = items.map((m, index) => {
+        const slotIndex = Math.floor(index / MATCH_PER_SLOT);
+        const plusMinutes = SLOT_MINUTES * slotIndex;
+        const base = new Date(today.getFullYear(), today.getMonth(), today.getDate(), BASE_HOUR, BASE_MINUTE);
+        const dt = new Date(base.getTime() + plusMinutes * 60 * 1000);
+        return API.updateSchedule(m._id, { scheduledAt: dt.toISOString() });
+      });
+      await Promise.all(tasks);
+      await load();
+      alert("✅ เติมเวลาอัตโนมัติสำเร็จ!");
+    } catch (e) { console.error(e); alert("ผิดพลาด"); }
+    finally { setSaving(false); }
+  }
+
+  async function saveOneTime(matchId, val) {
+    let v = val.trim(); if (!v) return;
+    v = v.replace(".", ":"); if (/^\d{1,2}$/.test(v)) v = v + ":00";
+    if (!/^\d{1,2}:\d{2}$/.test(v)) return;
+    const [hh, mm] = v.split(":"); const d = new Date();
+    const iso = new Date(d.getFullYear(), d.getMonth(), d.getDate(), Number(hh), Number(mm)).toISOString();
+    try { await API.updateSchedule(matchId, { scheduledAt: iso }); } catch(e) {}
   }
 
   // ============ Render ============
-
   return (
-    <div className="min-h-screen bg-slate-50 p-3 md:p-6">
+    <div className="min-h-screen bg-slate-50 p-3 md:p-6 pb-24">
       <div className="max-w-7xl mx-auto">
-        <header className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+        <header className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl md:text-2xl font-bold text-indigo-700">
-              Schedule Plan (Master List)
-            </h1>
-            <p className="text-slate-600 text-xs md:text-sm">
-              จัดลำดับ และใส่เวลาคาดการณ์ (ไม่ต้องใส่คอร์ท)
-            </p>
+            <h1 className="text-2xl font-bold text-indigo-700 flex items-center gap-2">📅 Schedule Master Plan</h1>
+            <p className="text-slate-500 text-sm mt-1">จัดลำดับการแข่งขัน และกำหนดเวลา</p>
           </div>
-
-          <div className="flex items-start gap-2">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-white rounded-2xl shadow p-2 md:p-3">
-              <select
-                className="border rounded px-2 py-2 text-sm"
-                value={hand}
-                onChange={(e) => setHand(e.target.value)}
-              >
-                <option value="">ทุกระดับมือ</option>
-                {HAND_LEVEL_OPTIONS.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.labelShort || opt.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="border rounded px-2 py-2 text-sm"
-                value={status}
-                onChange={(e) => setStatus(e.target.value)}
-              >
-                <option value="">ทุกสถานะ</option>
-                <option value="scheduled">รอแข่ง</option>
-                <option value="in-progress">กำลังแข่ง</option>
-                <option value="finished">จบแล้ว</option>
-              </select>
-              <input
-                type="text"
-                placeholder="ค้นหา (ชื่อทีม, Match ID)"
-                className="border rounded px-2 py-2 text-sm col-span-2"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-              />
-            </div>
-
-            <button
-              onClick={() => setShowSettings(true)}
-              className="p-3 bg-white rounded-2xl shadow hover:bg-slate-50 text-slate-600 hover:text-indigo-700"
-              title="ตั้งค่าการจัดเรียง"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-              </svg>
-            </button>
-          </div>
+          <button onClick={() => setShowSettings(true)} className="flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-lg text-slate-600 hover:text-indigo-600 shadow-sm transition-all">
+            ⚙️ ตั้งค่า Session Order
+          </button>
         </header>
 
-        {err && (
-          <div className="text-red-600 bg-red-100 p-3 rounded-md mb-4">
-            {err}
-          </div>
-        )}
+        {/* Filters & Sticky Actions (คงเดิม) */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          <select className="border rounded px-2 py-2 text-sm bg-white" value={hand} onChange={(e) => setHand(e.target.value)}>
+            <option value="">ทุกระดับมือ</option>
+            {HAND_LEVEL_OPTIONS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.labelShort || opt.label}</option>))}
+          </select>
+          <select className="border rounded px-2 py-2 text-sm bg-white" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <option value="">ทุกสถานะ</option>
+            <option value="scheduled">รอแข่ง</option>
+            <option value="finished">จบแล้ว</option>
+          </select>
+          <input placeholder="ค้นหา..." className="border rounded px-2 py-2 text-sm bg-white flex-1 min-w-[150px]" value={q} onChange={(e) => setQ(e.target.value)} />
+        </div>
 
+        <div className={`sticky top-0 z-20 mb-4 transition-all duration-300 ${selectedIds.size > 0 ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'}`}>
+           <div className="bg-indigo-50 border border-indigo-100 shadow-md rounded-xl p-2 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3 px-2">
+                <span className="bg-indigo-600 text-white text-xs font-bold px-2 py-1 rounded-full">{selectedIds.size}</span>
+              </div>
+              <div className="flex items-center gap-1 overflow-x-auto">
+                 <div className="flex bg-white rounded-lg border border-indigo-100 shadow-sm mr-2">
+                    <button onClick={() => moveBulk('top')} className="p-2 hover:bg-indigo-50 border-r border-indigo-50">⏫</button>
+                    <button onClick={() => moveBulk('up')} className="p-2 hover:bg-indigo-50 border-r border-indigo-50">🔼</button>
+                    <button onClick={() => moveBulk('down')} className="p-2 hover:bg-indigo-50 border-r border-indigo-50">🔽</button>
+                    <button onClick={() => moveBulk('bottom')} className="p-2 hover:bg-indigo-50">⏬</button>
+                 </div>
+                 <button onClick={handleAutoSortSelected} className="bg-white border border-indigo-200 text-indigo-700 px-3 py-2 rounded-lg text-sm font-semibold hover:bg-indigo-600 hover:text-white mr-2 whitespace-nowrap">Sort Selected</button>
+                 <button onClick={() => setSelectedIds(new Set())} className="text-xs text-slate-500 hover:text-red-600 font-medium px-2 whitespace-nowrap">Clear</button>
+              </div>
+           </div>
+        </div>
+
+        {/* ============ Table (New UI) ============ */}
         <div className="bg-white rounded-2xl shadow ring-1 ring-slate-200 overflow-hidden">
-          <div className="sticky top-0 bg-slate-100 border-b text-[13px] grid grid-cols-12 gap-2 px-3 py-2 font-semibold text-slate-600">
-            <div className="col-span-1 text-center">เรียง</div>
-            <div className="col-span-1 text-center">ลำดับ</div>
-            <div className="col-span-2">เวลาคาดการณ์ (น.)</div>
-            <div className="col-span-3">ระดับ/กลุ่ม</div>
-            <div className="col-span-3">ทีม (T1 vs T2)</div>
-            <div className="col-span-2 text-center">Match ID</div>
+          {/* Header */}
+          <div className="bg-slate-100 border-b text-[12px] uppercase tracking-wide grid grid-cols-12 gap-2 px-3 py-3 font-bold text-slate-500 items-center">
+            <div className="col-span-1 text-center">Select</div>
+            <div className="col-span-1 text-center">Seq</div>
+            <div className="col-span-2 text-center">Time (Lock)</div>
+            <div className="col-span-3">Hand / Group</div>
+            <div className="col-span-3">Match Info</div>
+            <div className="col-span-2 text-right">Status</div>
           </div>
 
-          {loading && !items.length && (
-            <div className="px-4 py-8 text-center text-slate-500 text-sm">
-              กำลังโหลด...
-            </div>
-          )}
-          {!loading && !items.length && (
-            <div className="px-4 py-8 text-center text-slate-500 text-sm">
-              ไม่มีข้อมูล
-            </div>
-          )}
+          <div className="divide-y divide-slate-100">
+            {items.map((m, i) => {
+               const isSelected = selectedIds.has(m._id);
+               // เช็คว่า "จัดแล้ว" หรือไม่ (Order > 0)
+               const isSorted = m.orderIndex > 0;
+               // เช็คว่าจะแสดง Divider ไหม
+               const showDivider = !isSorted && (i === 0 || (items[i-1] && items[i-1].orderIndex > 0));
 
-          {items.map((m, i) => (
-            <div
-              key={m._id}
-              className="grid grid-cols-12 gap-2 items-center px-3 py-2 border-b last:border-0 text-sm"
-            >
-              <div className="col-span-1 text-center">
-                <div className="flex gap-1 justify-center">
-                  <button
-                    className="border rounded p-1 enabled:hover:bg-slate-100 disabled:opacity-30"
-                    onClick={() => move(i, -1)}
-                    disabled={i === 0}
-                  >
-                    ▲
-                  </button>
-                  <button
-                    className="border rounded p-1 enabled:hover:bg-slate-100 disabled:opacity-30"
-                    onClick={() => move(i, 1)}
-                    disabled={i === items.length - 1}
-                  >
-                    ▼
-                  </button>
-                </div>
-              </div>
-              <div className="col-span-1 text-center font-medium">
-                {m.matchNo ?? "-"}
-              </div>
-              <div className="col-span-2">
-                <input
-                  className="border rounded px-2 py-1 w-full"
-                  placeholder="เช่น 09:00"
-                  defaultValue={formatTime(m.scheduledAt)}
-                  onBlur={(e) => saveOneTime(m._id, e.target.value.trim())}
-                />
-              </div>
-              <div className="col-span-3 text-slate-700">
-                {m.handLevel}
-                {m.group ? ` / ${m.group}` : ""}
-              </div>
-              <div className="col-span-3 truncate">
-                <strong className="font-semibold">
-                  {teamName(m.team1)}
-                </strong>
-                <span className="text-slate-400 font-normal"> vs </span>
-                <strong className="font-semibold">
-                  {teamName(m.team2)}
-                </strong>
-              </div>
-              <div className="col-span-2 text-center text-slate-600 font-medium">
-                {m.matchId || "-"}
-              </div>
-            </div>
-          ))}
+               return (
+                <React.Fragment key={m._id}>
+                  {/* --- Divider --- */}
+                  {showDivider && (
+                    <div className="bg-slate-50 border-y border-slate-200 py-3 px-4 flex justify-between items-center sticky top-[60px] z-10 shadow-sm">
+                        <div className="flex items-center gap-2 text-amber-600 font-bold text-sm">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><polyline points="19 12 12 19 5 12"></polyline></svg>
+                            <span>Queue / Draft (รอจัดลำดับ)</span>
+                        </div>
+                        <span className="bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded-full font-bold">{unsortedCount} รายการ</span>
+                    </div>
+                  )}
+
+                  {/* --- Row Content --- */}
+                  <div className={`grid grid-cols-12 gap-2 items-center px-3 py-3 text-sm transition-colors duration-150
+                    ${isSelected ? 'bg-indigo-50' : (isSorted ? 'bg-white hover:bg-slate-50' : 'bg-yellow-50/50 hover:bg-yellow-100/50')}
+                  `}>
+                    
+                    {/* Checkbox */}
+                    <div className="col-span-1 text-center flex justify-center">
+                      <input type="checkbox" className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500" 
+                        checked={isSelected} onChange={() => toggleSelect(m._id)} 
+                      />
+                    </div>
+                    
+                    {/* Seq */}
+                    <div className="col-span-1 text-center font-bold text-slate-400">
+                       {isSorted ? (
+                           <span className="text-slate-600">{i + 1}</span>
+                       ) : (
+                           <span>-</span>
+                       )}
+                    </div>
+
+                    {/* Time (Lock) */}
+                    <div className="col-span-2 px-1">
+                      <div className={`relative flex items-center rounded-md border overflow-hidden
+                         ${isSorted 
+                            ? (m.scheduledAt ? 'border-green-400 bg-green-50' : 'border-slate-300 bg-slate-50') 
+                            : 'border-amber-300 border-dashed bg-white'
+                         }
+                      `}>
+                          <input 
+                            className={`w-full text-center bg-transparent py-1.5 text-sm font-bold focus:outline-none
+                                ${isSorted && m.scheduledAt ? 'text-green-700' : 'text-slate-400'}
+                            `}
+                            placeholder="--:--"
+                            defaultValue={formatTime(m.scheduledAt)}
+                            onBlur={(e) => saveOneTime(m._id, e.target.value)}
+                          />
+                          {/* Icon */}
+                          <div className="pr-2">
+                             {isSorted ? (
+                                <svg className="w-3.5 h-3.5 text-green-600" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
+                             ) : (
+                                <svg className="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                             )}
+                          </div>
+                      </div>
+                    </div>
+
+                    {/* Hand / Group */}
+                    <div className="col-span-3 text-slate-700 font-medium truncate">
+                        {m.handLevel} <span className="text-slate-400 font-light mx-1">/</span> {m.group || '-'}
+                    </div>
+
+                    {/* Match Info */}
+                    <div className="col-span-3 truncate text-sm">
+                        <span className="font-semibold text-slate-800">{teamName(m.team1)}</span>
+                        <span className="text-slate-400 px-1 text-xs">vs</span>
+                        <span className="font-semibold text-slate-800">{teamName(m.team2)}</span>
+                        <div className="text-[10px] text-slate-400 mt-0.5">{m.matchId}</div>
+                    </div>
+
+                    {/* Status Badge */}
+                    <div className="col-span-2 text-right">
+                        {isSorted ? (
+                            <span className="inline-block px-2 py-1 rounded bg-green-100 text-green-700 text-[10px] font-bold border border-green-200">
+                                READY
+                            </span>
+                        ) : (
+                            <span className="inline-block px-2 py-1 rounded bg-amber-100 text-amber-700 text-[10px] font-bold border border-amber-200">
+                                WAIT
+                            </span>
+                        )}
+                    </div>
+
+                  </div>
+                </React.Fragment>
+               );
+            })}
+          </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 mt-4">
-          <button
-            className="border rounded px-4 py-2 bg-amber-500 text-white font-bold shadow-sm hover:bg-amber-600 disabled:bg-gray-400 w-full md:w-auto"
-            onClick={handleAutoSort}
-            disabled={loading || saving || !items.length}
-          >
-            จัดเรียงอัตโนมัติ (ตามรอบ)
-          </button>
-
-          <button
-            className="border rounded px-4 py-2 bg-blue-500 text-white font-bold shadow-sm hover:bg-blue-600 disabled:bg-gray-400 w-full md:w-auto"
-            onClick={handleAutoTime}
-            disabled={loading || saving || !items.length}
-          >
-            เติมเวลาอัตโนมัติ (35 นาที / 14 แมท)
-          </button>
-
-          <button
-            className="border rounded px-4 py-2 bg-green-600 text-white font-bold shadow-sm hover:bg-green-700 disabled:bg-gray-400 w-full md:w-auto"
-            onClick={saveOrder}
-            disabled={loading || saving || !items.length}
-          >
-            {saving ? "กำลังบันทึก..." : "Save Master Order"}
-          </button>
-
-          <Pagination
-            page={data.page}
-            pageSize={data.pageSize}
-            total={total}
-            onPageChange={load}
-            loading={loading}
-          />
+        {/* Bottom Actions */}
+        <div className="fixed bottom-6 right-6 flex flex-col md:flex-row gap-3 z-30 items-end md:items-center">
+           <button onClick={handleGlobalAutoSort} className="bg-amber-500 text-white shadow-lg border border-amber-600 px-4 py-3 rounded-full font-bold hover:bg-amber-600 transition mb-2 md:mb-0">
+             ⚡ จัดเรียง Auto (ทั้งหมด)
+           </button>
+           <button onClick={handleAutoTime} className="bg-white text-slate-700 border border-slate-300 shadow-lg px-4 py-3 rounded-full font-bold hover:bg-slate-50 transition">
+             🕒 เติมเวลา Auto
+           </button>
+           <button onClick={saveOrder} disabled={saving} className="bg-indigo-600 text-white shadow-lg shadow-indigo-200 px-6 py-3 rounded-full font-bold hover:bg-indigo-700 disabled:bg-gray-400 transition">
+             {saving ? "บันทึก..." : "💾 บันทึก Master Order"}
+           </button>
         </div>
+
+        <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} initialConfig={sessionConfig} onSave={setSessionConfig} defaultList={defaultFromConst} />
       </div>
-
-      <SettingsModal
-        isOpen={showSettings}
-        onClose={() => setShowSettings(false)}
-        initialConfig={sessionConfig}
-        onSave={(newConfig) => {
-          setSessionConfig(newConfig);
-        }}
-      />
     </div>
   );
 }

@@ -17,8 +17,6 @@ const NAV = [
   { to: "/admin/court-running", label: "Court Running", icon: "🏸" },
   { to: "/admin/matches", label: "Matches (Scoring)", icon: "📋" },
   { to: "/admin/standings", label: "Admin Standings", icon: "📊" },
-
-  // 🔥 แยกเมนู Knockout เป็น 2 หน้า
   {
     to: "/admin/knockout/bracket",
     label: "จัดสาย Knockout",
@@ -44,7 +42,7 @@ function Button({ onClick, children, className = "", type = "button" }) {
     <button
       type={type}
       onClick={onClick}
-      className={`border border-gray-300 bg-white px-3 py-1.5 rounded-lg text-sm shadow-sm hover:bg-gray-50 ${className}`}
+      className={`border border-gray-300 bg-white px-3 py-1.5 rounded-lg text-sm shadow-sm hover:bg-gray-50 transition-colors ${className}`}
     >
       {children}
     </button>
@@ -52,10 +50,9 @@ function Button({ onClick, children, className = "", type = "button" }) {
 }
 
 function NavItem({ to, icon, label, collapsed, isMobile = false }) {
-  const commonClasses = "flex items-center gap-3 px-3 py-2.5 rounded-lg";
+  const commonClasses = "flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors";
   const activeClasses = "bg-indigo-700 text-white";
-  const inactiveClasses =
-    "text-gray-700 hover:bg-indigo-50 hover:text-indigo-700";
+  const inactiveClasses = "text-gray-700 hover:bg-indigo-50 hover:text-indigo-700";
 
   return (
     <NavLink
@@ -64,9 +61,9 @@ function NavItem({ to, icon, label, collapsed, isMobile = false }) {
         `${commonClasses} ${isActive ? activeClasses : inactiveClasses}`
       }
     >
-      <span className="text-lg w-5 text-center">{icon}</span>
+      <span className="text-lg w-6 text-center">{icon}</span>
       {(!collapsed || isMobile) && (
-        <span className="font-medium text-sm">{label}</span>
+        <span className="font-medium text-sm whitespace-nowrap">{label}</span>
       )}
     </NavLink>
   );
@@ -85,33 +82,34 @@ export default function AdminLayout() {
   }
 
   return (
-    <div className="grid grid-rows-[auto_1fr] grid-cols-[auto_1fr] min-h-screen bg-gray-50">
+    // ✅ ปรับ Layout หลัก: มือถือเป็น Flex-col ธรรมดา, Desktop เป็น Grid
+    <div className="min-h-screen bg-gray-50 flex flex-col lg:grid lg:grid-cols-[auto_1fr] lg:grid-rows-[auto_1fr]">
+      
       {/* TOPBAR */}
-      <header className="sticky top-0 z-20 col-span-2 flex items-center justify-between gap-4 p-4 border-b bg-white/80 backdrop-blur-sm">
-        <div className="flex items-center gap-2">
-          <Button className="lg:hidden" onClick={() => setOpen(true)}>
-            ☰
+      <header className="sticky top-0 z-30 lg:col-span-2 flex items-center justify-between gap-4 p-3 md:p-4 border-b bg-white/95 backdrop-blur-sm shadow-sm lg:shadow-none">
+        <div className="flex items-center gap-3">
+          {/* ปุ่ม Hamburger โชว์เฉพาะมือถือ (lg:hidden) */}
+          <Button className="lg:hidden p-2" onClick={() => setOpen(true)}>
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
           </Button>
-          <div className="font-bold text-lg text-indigo-800">
-            🏸 Badminton Tournament Admin
+          <div className="font-bold text-base md:text-lg text-indigo-800 truncate">
+            🏸 <span className="hidden xs:inline">Badminton Admin</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2">
-          {/* ลิงก์ไปหน้า Public */}
           <NavLink to="/public" className="hidden sm:block">
             <Button>Public Site</Button>
           </NavLink>
 
           {user ? (
             <div className="hidden md:flex items-center gap-2 text-sm text-gray-700">
-              <span className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700">
-                {user.displayName} ({user.role})
+              <span className="px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 font-medium text-xs">
+                {user.displayName}
               </span>
-              <Button
-                onClick={handleLogout}
-                className="border-red-300 text-red-600 hover:bg-red-50"
-              >
+              <Button onClick={handleLogout} className="border-red-200 text-red-600 hover:bg-red-50 hover:border-red-300">
                 Logout
               </Button>
             </div>
@@ -119,6 +117,7 @@ export default function AdminLayout() {
             <Button onClick={() => navigate("/login")}>Login</Button>
           )}
 
+          {/* ปุ่ม Collapse Sidebar โชว์เฉพาะ Desktop */}
           <Button
             className="hidden lg:block"
             onClick={() => setCollapsed((v) => !v)}
@@ -128,80 +127,84 @@ export default function AdminLayout() {
         </div>
       </header>
 
-      {/* SIDEBAR */}
+      {/* SIDEBAR (Desktop Only) */}
+      {/* ✅ เพิ่ม hidden lg:flex เพื่อซ่อนบนมือถือ */}
       <aside
-        className={`sticky top-[77px] z-10 h-[calc(100vh-77px)] flex flex-col justify-between p-4 border-r bg-white/80 backdrop-blur-sm transition-all duration-200 ${
+        className={`hidden lg:flex sticky top-[69px] z-20 h-[calc(100vh-69px)] flex-col justify-between p-4 border-r bg-white transition-all duration-300 ${
           collapsed ? "w-20" : "w-64"
         }`}
       >
-        <div>
-          <div className="font-bold p-3 mb-2">
-            {collapsed ? "MD" : "Moodeng Cup"}
+        <div className="overflow-y-auto no-scrollbar">
+          <div className="font-bold px-3 mb-4 text-slate-400 text-xs uppercase tracking-wider">
+            {collapsed ? "Menu" : "Main Menu"}
           </div>
-          <nav className="flex flex-col gap-1.5">
+          <nav className="flex flex-col gap-1">
             {NAV.map((n) => (
               <NavItem key={n.to} {...n} collapsed={collapsed} />
             ))}
           </nav>
         </div>
 
-        <nav className="flex flex-col gap-1.5 pt-4 border-t">
-          <NavItem
-            to="/public"
-            icon="🌍"
-            label="Public Site"
-            collapsed={collapsed}
-          />
+        <nav className="flex flex-col gap-1 pt-4 border-t mt-2">
+          <NavItem to="/public" icon="🌍" label="Public Site" collapsed={collapsed} />
         </nav>
       </aside>
 
-      {/* DRAWER (Mobile) */}
+      {/* DRAWER (Mobile Only Overlay) */}
       {open && (
-        <div className="fixed inset-0 z-40 lg:hidden" role="dialog">
+        <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
+          {/* Backdrop */}
           <div
-            className="fixed inset-0 bg-black/30 backdrop-blur-sm"
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
             onClick={() => setOpen(false)}
           />
-          <div className="fixed top-0 left-0 z-50 h-full w-72 bg-white p-4 shadow-xl">
-            <div className="flex items-center justify-between mb-4">
-              <strong>Menu</strong>
-              <Button onClick={() => setOpen(false)}>✕</Button>
+          {/* Drawer Content */}
+          <div className="fixed top-0 left-0 z-50 h-full w-[80%] max-w-sm bg-white p-4 shadow-2xl flex flex-col animate-in slide-in-from-left duration-200">
+            <div className="flex items-center justify-between mb-6 border-b pb-4">
+              <div className="font-bold text-lg text-indigo-800">Menu</div>
+              <button 
+                onClick={() => setOpen(false)}
+                className="p-2 rounded-full hover:bg-slate-100 text-slate-500"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <nav className="flex flex-col gap-1.5">
+            
+            <nav className="flex-1 overflow-y-auto flex flex-col gap-1.5">
               {NAV.map((n) => (
                 <NavItem key={n.to} {...n} isMobile={true} />
               ))}
+            </nav>
 
-              <hr className="my-2" />
-
-              <NavItem
-                to="/public"
-                icon="🌍"
-                label="Public Site"
-                isMobile={true}
-              />
+            <div className="mt-auto border-t pt-4 space-y-3">
+              <NavLink to="/public" onClick={() => setOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100">
+                <span className="text-lg">🌍</span>
+                <span className="font-medium">Public Site</span>
+              </NavLink>
 
               {user && (
-                <div className="mt-4 border-t pt-3 text-sm text-gray-700 flex flex-col gap-2">
-                  <span>
-                    {user.displayName} ({user.role})
-                  </span>
+                <div className="bg-slate-50 rounded-xl p-3">
+                  <div className="text-sm font-medium text-slate-700 mb-2">
+                    {user.displayName}
+                  </div>
                   <Button
                     onClick={handleLogout}
-                    className="border-red-300 text-red-600 hover:bg-red-50"
+                    className="w-full border-red-200 text-red-600 bg-white hover:bg-red-50"
                   >
                     Logout
                   </Button>
                 </div>
               )}
-            </nav>
+            </div>
           </div>
         </div>
       )}
 
       {/* CONTENT */}
-      <main className="p-4 md:p-6">
-        <div className="max-w-7xl mx-auto">
+      <main className="flex-1 min-w-0 p-3 md:p-6 overflow-x-hidden">
+        <div className="max-w-7xl mx-auto w-full">
           <Outlet />
         </div>
       </main>

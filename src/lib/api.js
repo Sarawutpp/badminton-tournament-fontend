@@ -101,7 +101,7 @@ export const API = {
     if (q) qs.set("q", q);
     if (sort) qs.set("sort", sort);
     qs.set("page", page);
-    qs.set("pageSize", pageSize);
+    qs.set("pageSize", 2000);
     return request(`/matches?${qs.toString()}`);
   },
 

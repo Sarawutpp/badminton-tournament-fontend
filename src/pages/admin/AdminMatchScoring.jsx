@@ -7,45 +7,12 @@ const pageSize = 24;
 
 // ----------------- Helpers -----------------
 function hasScore(m) {
-  // เช็คจาก sets ก่อน
   if (Array.isArray(m.sets)) {
-    const anySet = m.sets.some(
-      (s) => (s?.t1 || 0) > 0 || (s?.t2 || 0) > 0
-    );
+    const anySet = m.sets.some((s) => (s?.t1 || 0) > 0 || (s?.t2 || 0) > 0);
     if (anySet) return true;
   }
-  // เผื่อกรณีเก่า ที่เคยเก็บ score1/score2 ไว้
   if ((m.score1 || 0) > 0 || (m.score2 || 0) > 0) return true;
   return false;
-}
-
-function badgeForStatus(m) {
-  if (m.status === "finished" && hasScore(m)) {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-        ✅ มีผลแล้ว
-      </span>
-    );
-  }
-  if (m.status === "finished" && !hasScore(m)) {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-        ⚠️ จบแมตช์แล้ว รอกรอกผล
-      </span>
-    );
-  }
-  if (m.status === "in-progress") {
-    return (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-sky-50 text-sky-700 border border-sky-200">
-        🔵 กำลังแข่ง
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-50 text-slate-600 border border-slate-200">
-      ⚪ รอแข่ง
-    </span>
-  );
 }
 
 function roundLabel(m) {
@@ -92,7 +59,11 @@ export default function AdminMatchScoringPage() {
         onlyFinished: filters.onlyFinished || undefined,
       });
 
-      const items = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+      const items = Array.isArray(res?.items)
+        ? res.items
+        : Array.isArray(res)
+        ? res
+        : [];
       setRows(items);
       setTotal(Number(res?.total ?? items.length));
       setPage(Number(res?.page ?? p));
@@ -111,26 +82,28 @@ export default function AdminMatchScoringPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const maxPage =
-    pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
+  const maxPage = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
+    <div className="p-3 md:p-6 space-y-4 pb-20">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-slate-900">
-            กรอกผลการแข่งขัน (Admin Match Scoring)
+            กรอกผลการแข่งขัน
           </h1>
-          <p className="text-sm text-slate-500">
-            กรอกผลเป็นรายเซ็ต ระบบจะคำนวณผู้ชนะ, แต้มรวม, และอัปเดตตารางคะแนนให้เอง
+          <p className="text-xs md:text-sm text-slate-500">
+            Group (Max 21, 2 Sets) / Knockout (Max 30, 3 Sets)
           </p>
         </div>
       </header>
 
+      {/* Filters */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-3 md:p-4 space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2 md:gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3">
           <div>
-            <label className="text-xs text-slate-500">ระดับมือ</label>
+            <label className="text-[10px] md:text-xs text-slate-500">
+              ระดับมือ
+            </label>
             <select
               className="border rounded px-2 py-2 w-full text-sm"
               value={filters.handLevel}
@@ -147,10 +120,12 @@ export default function AdminMatchScoringPage() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-slate-500">กลุ่ม</label>
+            <label className="text-[10px] md:text-xs text-slate-500">
+              กลุ่ม
+            </label>
             <input
               className="border rounded px-2 py-2 w-full text-sm"
-              placeholder="เช่น A, B, C..."
+              placeholder="A, B..."
               value={filters.group}
               onChange={(e) =>
                 setFilters((f) => ({ ...f, group: e.target.value }))
@@ -158,7 +133,7 @@ export default function AdminMatchScoringPage() {
             />
           </div>
           <div>
-            <label className="text-xs text-slate-500">รอบ</label>
+            <label className="text-[10px] md:text-xs text-slate-500">รอบ</label>
             <select
               className="border rounded px-2 py-2 w-full text-sm"
               value={filters.roundType}
@@ -172,7 +147,9 @@ export default function AdminMatchScoringPage() {
             </select>
           </div>
           <div>
-            <label className="text-xs text-slate-500">ค้นหา</label>
+            <label className="text-[10px] md:text-xs text-slate-500">
+              ค้นหา
+            </label>
             <input
               className="border rounded px-2 py-2 w-full text-sm"
               placeholder="ชื่อทีม / Match ID"
@@ -183,8 +160,8 @@ export default function AdminMatchScoringPage() {
             />
           </div>
         </div>
-        <div className="flex items-center justify-between text-xs md:text-sm text-slate-600">
-          <label className="inline-flex items-center gap-2">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-xs md:text-sm text-slate-600">
+          <label className="inline-flex items-center gap-2 self-start md:self-center">
             <input
               type="checkbox"
               className="rounded border-slate-300"
@@ -193,11 +170,11 @@ export default function AdminMatchScoringPage() {
                 setFilters((f) => ({ ...f, onlyFinished: e.target.checked }))
               }
             />
-            แสดงเฉพาะแมตช์ที่สถานะ "จบแล้ว"
+            เฉพาะแมตช์ "จบแล้ว"
           </label>
-          <div className="flex gap-2">
+          <div className="flex gap-2 w-full md:w-auto">
             <button
-              className="px-3 py-1 border rounded-full text-xs md:text-sm"
+              className="flex-1 md:flex-none px-3 py-2 md:py-1 border rounded-full text-xs md:text-sm hover:bg-slate-50"
               onClick={() => {
                 setFilters({
                   handLevel: "",
@@ -209,57 +186,69 @@ export default function AdminMatchScoringPage() {
                 load(1);
               }}
             >
-              ล้างตัวกรอง
+              ล้างค่า
             </button>
             <button
-              className="px-3 py-1 bg-slate-900 text-white rounded-full text-xs md:text-sm"
+              className="flex-1 md:flex-none px-4 py-2 md:py-1 bg-slate-900 text-white rounded-full text-xs md:text-sm hover:bg-slate-800"
               onClick={() => load(1)}
               disabled={loading}
             >
-              โหลดข้อมูล
+              {loading ? "Loading..." : "โหลดข้อมูล"}
             </button>
           </div>
         </div>
       </div>
 
       {err && (
-        <div className="p-3 bg-red-50 text-sm text-red-600 rounded">
-          {err}
-        </div>
+        <div className="p-3 bg-red-50 text-sm text-red-600 rounded">{err}</div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
+      {/* ================= Mobile List View (md:hidden) ================= */}
+      <div className="block md:hidden space-y-4">
+        {rows && rows.length > 0 ? (
+          rows.map((m) => (
+            <MatchScoreCardMobile
+              key={m._id}
+              m={m}
+              loadData={() => load(page)}
+            />
+          ))
+        ) : (
+          <div className="text-center py-8 text-slate-400 bg-white rounded-xl border border-dashed">
+            ไม่พบข้อมูลแมตช์
+          </div>
+        )}
+      </div>
+
+      {/* ================= Desktop Table View (hidden md:block) ================= */}
+      <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-x-auto">
         <table className="w-full text-xs md:text-sm">
           <thead className="bg-slate-50 text-slate-600">
             <tr>
               <th className="p-2 text-center w-16">Match</th>
               <th className="p-2 text-left">คู่แข่ง</th>
-              <th className="p-2 text-center w-24">ระดับ / กลุ่ม</th>
+              <th className="p-2 text-center w-24">ระดับ/กลุ่ม</th>
               <th className="p-2 text-center w-24">รอบ</th>
               <th className="p-2 text-center w-20">คอร์ท</th>
-              <th className="p-2 text-center w-20">สถานะ</th>
-              <th className="p-2 text-center w-28">Set 1</th>
-              <th className="p-2 text-center w-28">Set 2</th>
-              <th className="p-2 text-center w-28">Set 3</th>
+              <th className="p-2 text-center w-24">สถานะ</th>
+              <th className="p-2 text-center w-24">Set 1</th>
+              <th className="p-2 text-center w-24">Set 2</th>
+              <th className="p-2 text-center w-24">Set 3</th>
               <th className="p-2 text-center w-28">Action</th>
             </tr>
           </thead>
           <tbody>
             {rows && rows.length > 0 ? (
               rows.map((m) => (
-                <MatchScoreRow
+                <MatchScoreRowDesktop
                   key={m._id}
                   m={m}
                   loadData={() => load(page)}
-                  setErr={setErr}
                 />
               ))
             ) : (
               <tr>
-                <td
-                  colSpan={10}
-                  className="p-4 text-center text-slate-500"
-                >
+                <td colSpan={10} className="p-8 text-center text-slate-500">
                   ยังไม่มีแมตช์ให้กรอกผล
                 </td>
               </tr>
@@ -268,13 +257,14 @@ export default function AdminMatchScoringPage() {
         </table>
       </div>
 
-      <div className="flex items-center justify-between text-xs md:text-sm text-slate-600">
+      {/* Pagination */}
+      <div className="flex items-center justify-between text-xs md:text-sm text-slate-600 pt-2">
         <div>
-          รวม {total} แมตช์ • หน้า {page}/{maxPage}
+          รวม {total} • หน้า {page}/{maxPage}
         </div>
         <div className="flex gap-2">
           <button
-            className="px-3 py-1 border rounded-full"
+            className="px-3 py-1 border rounded-full hover:bg-slate-50 disabled:opacity-50"
             disabled={loading || page <= 1}
             onClick={() => {
               const p = Math.max(1, page - 1);
@@ -285,7 +275,7 @@ export default function AdminMatchScoringPage() {
             ก่อนหน้า
           </button>
           <button
-            className="px-3 py-1 border rounded-full"
+            className="px-3 py-1 border rounded-full hover:bg-slate-50 disabled:opacity-50"
             disabled={loading || page >= maxPage}
             onClick={() => {
               const p = Math.min(maxPage, page + 1);
@@ -301,49 +291,82 @@ export default function AdminMatchScoringPage() {
   );
 }
 
-// ----------------- แถวคะแนนแต่ละแมตช์ -----------------
-function MatchScoreRow({ m, loadData, setErr }) {
+// =========================================================================
+// Logic Components (Desktop Row & Mobile Card)
+// =========================================================================
+
+/**
+ * Shared Logic for Scoring
+ */
+function useMatchScoring(m, loadData) {
   const isKO = m.roundType === "knockout";
-  const maxSets = isKO ? 3 : 3; // ตอนนี้ group ก็ให้ใส่ได้ 3 set เก็บเผื่อ tie-break
+  const isGroup = !isKO;
+
+  // Rules:
+  // Group: Max 21, No Deuce, 2 Sets only
+  // Knockout: Max 30, Deuce allowed, 3 Sets (Best of 3)
+  const maxSets = isGroup ? 2 : 3;
+  const maxScore = isGroup ? 21 : 30;
 
   const alreadyHasScore = hasScore(m);
-
-  // ถ้า "จบแล้ว" แต่ยังไม่มีคะแนน -> เปิดโหมดแก้ไขให้เลย
-  const [isEditing, setIsEditing] = React.useState(
+  const [isEditing, setIsEditing] = useState(
     m.status === "finished" && !alreadyHasScore
   );
+  const [saving, setSaving] = useState(false);
+  const [localErr, setLocalErr] = useState("");
 
-  const [localSets, setLocalSets] = React.useState(() => {
+  const [localSets, setLocalSets] = useState(() => {
+    // เตรียม array 3 ช่องเสมอ แต่จะโชว์กี่ช่องขึ้นอยู่กับ mode
     const s =
       m.sets?.map((set) => ({ t1: set.t1 || 0, t2: set.t2 || 0 })) || [];
-    while (s.length < maxSets) s.push({ t1: 0, t2: 0 });
-    return s.slice(0, maxSets);
+    while (s.length < 3) s.push({ t1: 0, t2: 0 });
+    return s;
   });
 
-  const [saving, setSaving] = React.useState(false);
-
-  // แก้ logic: กรอกคะแนนได้เฉพาะแมตช์ที่จบแล้ว + กำลังแก้ไข
   const canEdit = !saving && m.status === "finished" && isEditing;
 
   function updateSetScore(index, team, value) {
-    const v = parseInt(value, 10);
-    const safe = Number.isNaN(v) ? 0 : v;
+    let v = parseInt(value, 10);
+    if (Number.isNaN(v)) v = 0;
+    if (v < 0) v = 0;
+    // Limit Max Score
+    if (v > maxScore) return; // ห้ามกรอกเกิน
+
     const arr = [...localSets];
-    arr[index] = { ...arr[index], [team]: safe };
+    arr[index] = { ...arr[index], [team]: v };
     setLocalSets(arr);
   }
 
   async function save() {
     setSaving(true);
-    setErr("");
+    setLocalErr("");
     try {
-      // trim ชุดเซ็ตที่เป็น 0-0 ออกก่อนส่ง
-      const payloadSets = (localSets || []).filter(
-        (s) => (s?.t1 || 0) > 0 || (s?.t2 || 0) > 0
-      );
+      // Logic Validation
+      // 1. ตรวจสอบว่ามีคะแนนเท่ากันไหม (ในเซ็ตที่กรอก)
+      for (let i = 0; i < maxSets; i++) {
+        const s = localSets[i];
+        const t1 = s.t1 || 0;
+        const t2 = s.t2 || 0;
+        // ถ้ามีการกรอกคะแนน แต่คะแนนเท่ากัน -> ห้ามบันทึก
+        if ((t1 > 0 || t2 > 0) && t1 === t2) {
+          throw new Error(
+            `เซ็ตที่ ${i + 1} คะแนนเท่ากันไม่ได้ (${t1}-${t2})`
+          );
+        }
+      }
 
-      const gamesToWin = 2; // Baby/BG/N/S: best of 3
-      const allowDraw = !isKO; // รอบแบ่งกลุ่ม = true, รอบ knockout = false
+      // Filter เอาเฉพาะเซ็ตที่มีค่า และอยู่ในจำนวน Max Sets
+      const payloadSets = localSets
+        .slice(0, maxSets) // ตัดเอาแค่ 2 หรือ 3 เซ็ตตามโหมด
+        .filter((s) => (s?.t1 || 0) > 0 || (s?.t2 || 0) > 0);
+
+      // ถ้าไม่มีคะแนนเลย
+      if (payloadSets.length === 0) {
+        throw new Error("กรุณากรอกคะแนนอย่างน้อย 1 เซ็ต");
+      }
+
+      const gamesToWin = 2; // BO3
+      const allowDraw = false; // บังคับมีแพ้ชนะในแต่ละเซ็ตไปเลยสำหรับ score check
 
       await API.updateScore(m._id, {
         sets: payloadSets,
@@ -351,190 +374,342 @@ function MatchScoreRow({ m, loadData, setErr }) {
         gamesToWin,
         allowDraw,
       });
+
       setIsEditing(false);
       await loadData();
     } catch (e) {
-      setErr(e.message || "บันทึกไม่สำเร็จ");
+      alert(e.message || "บันทึกไม่สำเร็จ");
+      setLocalErr(e.message);
     } finally {
       setSaving(false);
     }
   }
 
-  // Badge แสดงสถานะย่อย
+  function cancel() {
+    setIsEditing(false);
+    setLocalErr("");
+    // Revert
+    const s =
+      m.sets?.map((set) => ({ t1: set.t1 || 0, t2: set.t2 || 0 })) || [];
+    while (s.length < 3) s.push({ t1: 0, t2: 0 });
+    setLocalSets(s);
+  }
+
+  return {
+    isGroup,
+    maxSets,
+    maxScore,
+    isEditing,
+    setIsEditing,
+    canEdit,
+    localSets,
+    updateSetScore,
+    save,
+    cancel,
+    alreadyHasScore,
+    saving,
+  };
+}
+
+/**
+ * 📱 Mobile Card Component
+ */
+function MatchScoreCardMobile({ m, loadData }) {
+  const logic = useMatchScoring(m, loadData);
+  const {
+    isGroup,
+    maxSets,
+    isEditing,
+    canEdit,
+    localSets,
+    updateSetScore,
+    save,
+    cancel,
+    alreadyHasScore,
+    saving,
+    setIsEditing,
+  } = logic;
+
+  // Badge Status
   let statusBadge = null;
   if (m.status === "finished") {
-    if (hasScore(m)) {
-      statusBadge = (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
-          ✅ มีผลแล้ว
-        </span>
-      );
-    } else {
-      statusBadge = (
-        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-          ⚠️ ยังไม่กรอกผล
-        </span>
-      );
-    }
+    statusBadge = hasScore(m) ? (
+      <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold">
+        ✅ มีผล
+      </span>
+    ) : (
+      <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[10px] font-bold">
+        ⚠️ รอกรอก
+      </span>
+    );
   } else if (m.status === "in-progress") {
     statusBadge = (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-sky-50 text-sky-700 border border-sky-200">
+      <span className="bg-sky-100 text-sky-700 px-2 py-0.5 rounded text-[10px] font-bold">
+        กำลังแข่ง
+      </span>
+    );
+  } else {
+    statusBadge = (
+      <span className="bg-slate-100 text-slate-500 px-2 py-0.5 rounded text-[10px] font-bold">
+        รอแข่ง
+      </span>
+    );
+  }
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+      {/* Header */}
+      <div className="flex justify-between items-start mb-3">
+        <div>
+          <div className="text-xs font-bold text-indigo-600">
+            #{m.matchNo} <span className="text-slate-400 font-normal">| {m.court || '-'}</span>
+          </div>
+          <div className="text-[10px] text-slate-400">{m.matchId}</div>
+        </div>
+        <div>{statusBadge}</div>
+      </div>
+
+      {/* Teams */}
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex-1">
+          <div className="font-semibold text-slate-800 text-sm">
+            {teamName(m.team1)}
+          </div>
+        </div>
+        <div className="px-2 text-xs text-slate-400">vs</div>
+        <div className="flex-1 text-right">
+          <div className="font-semibold text-slate-800 text-sm">
+            {teamName(m.team2)}
+          </div>
+        </div>
+      </div>
+
+      {/* Info Tag */}
+      <div className="flex gap-2 mb-4 text-[10px] text-slate-500">
+        <span className="bg-slate-100 px-2 py-1 rounded">
+          {handShort(m.handLevel)}
+        </span>
+        <span className="bg-slate-100 px-2 py-1 rounded">{roundLabel(m)}</span>
+      </div>
+
+      {/* Inputs */}
+      <div className="bg-slate-50 rounded-lg p-3 mb-4">
+        <div className="flex justify-between text-[10px] text-slate-400 mb-2 px-1">
+            <span>Team 1</span>
+            <span>Team 2</span>
+        </div>
+        {[0, 1, 2].map((i) => {
+          if (i >= maxSets) return null; // ซ่อน Set 3 ถ้าเป็น Group
+          return (
+            <div key={i} className="flex items-center justify-between mb-2 last:mb-0">
+              <input
+                type="number"
+                pattern="\d*"
+                className="w-14 h-10 text-center border border-slate-300 rounded-lg text-lg font-bold bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-60 disabled:bg-slate-100"
+                value={localSets[i].t1 || ""}
+                onChange={(e) => updateSetScore(i, "t1", e.target.value)}
+                disabled={!canEdit}
+                placeholder="0"
+              />
+              <span className="text-xs font-bold text-slate-400">Set {i + 1}</span>
+              <input
+                type="number"
+                pattern="\d*"
+                className="w-14 h-10 text-center border border-slate-300 rounded-lg text-lg font-bold bg-white focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-60 disabled:bg-slate-100"
+                value={localSets[i].t2 || ""}
+                onChange={(e) => updateSetScore(i, "t2", e.target.value)}
+                disabled={!canEdit}
+                placeholder="0"
+              />
+            </div>
+          );
+        })}
+         {isGroup && (
+             <div className="text-[10px] text-center text-slate-400 mt-2">
+                 * รอบแบ่งกลุ่มแข่ง 2 เซ็ต (Max 21)
+             </div>
+         )}
+      </div>
+
+      {/* Action Buttons */}
+      <div className="text-right">
+        {!canEdit && m.status !== "finished" && (
+          <span className="text-xs text-slate-400">
+            ต้องจบแมตช์ก่อนจึงจะกรอกผลได้
+          </span>
+        )}
+        {m.status === "finished" && !isEditing && (
+          <button
+            onClick={() => setIsEditing(true)}
+            className="w-full py-2 rounded-lg border border-slate-300 font-semibold text-slate-700 hover:bg-slate-50 text-sm"
+          >
+            {alreadyHasScore ? "แก้ไขผล" : "กรอกผล"}
+          </button>
+        )}
+        {canEdit && (
+          <div className="flex gap-2">
+            <button
+              onClick={cancel}
+              disabled={saving}
+              className="flex-1 py-2 rounded-lg border border-slate-300 text-slate-600 font-semibold text-sm hover:bg-slate-50"
+            >
+              ยกเลิก
+            </button>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="flex-1 py-2 rounded-lg bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 shadow-sm"
+            >
+              {saving ? "บันทึก..." : "บันทึก"}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * 💻 Desktop Row Component
+ */
+function MatchScoreRowDesktop({ m, loadData }) {
+  const logic = useMatchScoring(m, loadData);
+  const {
+    isGroup,
+    maxSets,
+    isEditing,
+    canEdit,
+    localSets,
+    updateSetScore,
+    save,
+    cancel,
+    alreadyHasScore,
+    saving,
+    setIsEditing,
+  } = logic;
+
+  // Badge Logic
+  let statusBadge = null;
+  if (m.status === "finished") {
+    statusBadge = hasScore(m) ? (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-emerald-50 text-emerald-700 border border-emerald-200">
+        ✅ มีผล
+      </span>
+    ) : (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700 border border-amber-200">
+        ⚠️ รอกรอก
+      </span>
+    );
+  } else if (m.status === "in-progress") {
+    statusBadge = (
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-sky-50 text-sky-700 border border-sky-200">
         🔵 กำลังแข่ง
       </span>
     );
   } else {
     statusBadge = (
-      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-50 text-slate-600 border border-slate-200">
+      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] bg-slate-50 text-slate-600 border border-slate-200">
         ⚪ รอแข่ง
       </span>
     );
   }
 
   return (
-    <tr className="border-t align-top">
+    <tr className="border-t align-middle hover:bg-slate-50/50 transition-colors">
       <td className="p-2 text-center">
-        <div className="font-semibold text-slate-900">
-          {m.matchNo ?? m.no ?? "-"}
-        </div>
-        <div className="text-[10px] text-slate-400">
-          {m.matchId || m._id?.slice(-6)}
+        <div className="font-bold text-slate-700">{m.matchNo ?? "-"}</div>
+        <div className="text-[10px] text-slate-400 font-mono">
+          {m.matchId?.slice(-4)}
         </div>
       </td>
       <td className="p-2">
-        <div className="font-medium text-slate-900">
-          {teamName(m.team1) || m.team1?.name || "-"}
+        <div className="font-semibold text-slate-800 text-sm">
+          {teamName(m.team1)}
         </div>
-        <div className="text-[11px] text-slate-500">vs</div>
-        <div className="font-medium text-slate-900">
-          {teamName(m.team2) || m.team2?.name || "-"}
+        <div className="text-[10px] text-slate-400">vs</div>
+        <div className="font-semibold text-slate-800 text-sm">
+          {teamName(m.team2)}
         </div>
       </td>
       <td className="p-2 text-center">
-        <div className="text-[11px] text-slate-500">ระดับ</div>
-        <div className="font-semibold text-slate-900">
-          {handShort(m.handLevel || m.level)}
+        <div className="font-bold text-indigo-600 text-xs">
+          {handShort(m.handLevel)}
         </div>
         {m.group && (
-          <div className="text-[11px] text-slate-500">กลุ่ม {m.group}</div>
+          <div className="text-[10px] text-slate-500">Grp {m.group}</div>
         )}
       </td>
-      <td className="p-2 text-center">
-        <div className="text-[11px] text-slate-500">รอบ</div>
-        <div className="font-semibold text-slate-900">
-          {roundLabel(m)}
-        </div>
+      <td className="p-2 text-center text-xs text-slate-600">
+        {roundLabel(m)}
+      </td>
+      <td className="p-2 text-center font-bold text-slate-700 text-xs">
+        {m.court || "-"}
       </td>
       <td className="p-2 text-center">
-        <div className="text-[11px] text-slate-500">คอร์ท</div>
-        <div className="font-semibold text-slate-900">
-          {m.court || "-"}
+        <div className="text-xs font-medium text-slate-800 mb-1">
+          {m.status === "finished" ? "จบแล้ว" : m.status === "in-progress" ? "กำลังแข่ง" : "รอ"}
         </div>
-      </td>
-      <td className="p-2 text-center">
-        <div className="text-[11px] text-slate-500">สถานะ</div>
-        <div className="font-semibold text-slate-900">
-          {m.status === "finished"
-            ? "จบแล้ว"
-            : m.status === "in-progress"
-            ? "กำลังแข่ง"
-            : "รอแข่ง"}
-        </div>
-        <div className="mt-1">{statusBadge}</div>
+        {statusBadge}
       </td>
 
-      {/* Set 1 */}
-      <td className="p-2">
-        <div className="flex items-center gap-2">
-          <input
-            className="border rounded px-2 py-1 w-16 text-center disabled:bg-gray-100 disabled:opacity-70"
-            value={localSets[0].t1}
-            onChange={(e) => updateSetScore(0, "t1", e.target.value)}
-            disabled={!canEdit}
-          />
-          <span>–</span>
-          <input
-            className="border rounded px-2 py-1 w-16 text-center disabled:bg-gray-100 disabled:opacity-70"
-            value={localSets[0].t2}
-            onChange={(e) => updateSetScore(0, "t2", e.target.value)}
-            disabled={!canEdit}
-          />
-        </div>
-      </td>
-
-      {/* Set 2 */}
-      <td className="p-2">
-        <div className="flex items-center gap-2">
-          <input
-            className="border rounded px-2 py-1 w-16 text-center disabled:bg-gray-100 disabled:opacity-70"
-            value={localSets[1].t1}
-            onChange={(e) => updateSetScore(1, "t1", e.target.value)}
-            disabled={!canEdit}
-          />
-          <span>–</span>
-          <input
-            className="border rounded px-2 py-1 w-16 text-center disabled:bg-gray-100 disabled:opacity-70"
-            value={localSets[1].t2}
-            onChange={(e) => updateSetScore(1, "t2", e.target.value)}
-            disabled={!canEdit}
-          />
-        </div>
-      </td>
-
-      {/* Set 3 */}
-      <td className="p-2">
-        <div className="flex items-center gap-2">
-          <input
-            className="border rounded px-2 py-1 w-16 text-center disabled:bg-gray-100 disabled:opacity-70"
-            value={localSets[2].t1}
-            onChange={(e) => updateSetScore(2, "t1", e.target.value)}
-            disabled={!canEdit}
-          />
-          <span>–</span>
-          <input
-            className="border rounded px-2 py-1 w-16 text-center disabled:bg-gray-100 disabled:opacity-70"
-            value={localSets[2].t2}
-            onChange={(e) => updateSetScore(2, "t2", e.target.value)}
-            disabled={!canEdit}
-          />
-        </div>
-      </td>
+      {/* Sets Input */}
+      {[0, 1, 2].map((i) => {
+        if (i >= maxSets) {
+          return (
+            <td key={i} className="p-2 text-center bg-slate-50">
+              <span className="text-slate-300 text-xs">-</span>
+            </td>
+          );
+        }
+        return (
+          <td key={i} className="p-2">
+            <div className="flex items-center justify-center gap-1">
+              <input
+                type="text"
+                className="border border-slate-300 rounded px-1 py-1 w-10 text-center text-sm font-bold focus:ring-1 focus:ring-indigo-500 outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                value={localSets[i].t1 || ""}
+                onChange={(e) => updateSetScore(i, "t1", e.target.value)}
+                disabled={!canEdit}
+                placeholder="0"
+              />
+              <span className="text-slate-400 text-[10px]">:</span>
+              <input
+                type="text"
+                className="border border-slate-300 rounded px-1 py-1 w-10 text-center text-sm font-bold focus:ring-1 focus:ring-indigo-500 outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                value={localSets[i].t2 || ""}
+                onChange={(e) => updateSetScore(i, "t2", e.target.value)}
+                disabled={!canEdit}
+                placeholder="0"
+              />
+            </div>
+          </td>
+        );
+      })}
 
       <td className="p-2 text-center">
         {!canEdit && m.status !== "finished" && (
-          <div className="text-[11px] text-slate-400">
-            แก้ไขได้เมื่อสถานะเป็น "จบแล้ว"
-          </div>
+          <span className="text-[10px] text-slate-400">จบแมตช์ก่อน</span>
         )}
         {m.status === "finished" && !isEditing && (
           <button
-            className="px-3 py-1 rounded-full border border-slate-300 text-xs hover:bg-slate-50"
+            className="px-3 py-1 rounded border border-slate-300 text-xs font-medium hover:bg-white hover:border-indigo-300 hover:text-indigo-600 transition-colors"
             onClick={() => setIsEditing(true)}
-            disabled={saving}
           >
-            {alreadyHasScore ? "แก้ไขผล" : "กรอกผล"}
+            {alreadyHasScore ? "แก้ไข" : "กรอกผล"}
           </button>
         )}
         {canEdit && (
           <div className="flex flex-col gap-1 items-center">
             <button
-              className="px-3 py-1 rounded-full bg-emerald-600 text-white text-xs hover:bg-emerald-700 disabled:opacity-70"
+              className="w-full px-2 py-1 rounded bg-indigo-600 text-white text-xs hover:bg-indigo-700 shadow-sm disabled:opacity-70"
               onClick={save}
               disabled={saving}
             >
-              {saving ? "กำลังบันทึก..." : "บันทึกผล"}
+              บันทึก
             </button>
             <button
-              className="px-3 py-1 rounded-full border border-slate-300 text-[11px] hover:bg-slate-50"
-              onClick={() => {
-                setIsEditing(false);
-                const s =
-                  m.sets?.map((set) => ({
-                    t1: set.t1 || 0,
-                    t2: set.t2 || 0,
-                  })) || [];
-                while (s.length < maxSets) s.push({ t1: 0, t2: 0 });
-                setLocalSets(s.slice(0, maxSets));
-              }}
+              className="w-full px-2 py-1 rounded text-slate-500 text-[10px] hover:text-red-500 underline decoration-slate-300 hover:decoration-red-300"
+              onClick={cancel}
               disabled={saving}
             >
               ยกเลิก
