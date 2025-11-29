@@ -2,7 +2,7 @@ name: Deploy Frontend to 119.59.102.134
 
 on:
   push:
-    branches: [ main ]     # ถ้า FE ใช้ branch อื่น เช่น master, dev ให้เปลี่ยนตรงนี้
+    branches: [ main ]     # ถ้า FE ใช้ branch อื่น เช่น master, dev ให้เปลี่ยนตรงนี้ll
   workflow_dispatch:
 
 jobs:
@@ -62,7 +62,7 @@ jobs:
          script: |
           BASE=/var/www/moodeng-fe
           REL=${BASE}/releases/${GITHUB_SHA}
-          ln -sfnT ${REL} ${BASE}/current
+          ln -sfnT ${REL} ${BASE}/current 
           sudo /usr/sbin/nginx -t
           sudo /usr/sbin/nginx -s reload
           echo "Activated -> ${REL}"
