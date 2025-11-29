@@ -39,7 +39,7 @@ jobs:
           script_stop: true
           script: |
             BASE=/var/www/moodeng-fe
-            mkdir -p ${BASE}/releases/${GITHUB_SHA}
+            mkdir -p ${BASE}/releases/${{ github.sha }}
 
       - name: Upload dist files
         uses: appleboy/scp-action@v0.1.7
