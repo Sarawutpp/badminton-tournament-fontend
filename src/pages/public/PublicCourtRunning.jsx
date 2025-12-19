@@ -33,7 +33,7 @@ function CourtCard({ courtNumber, match }) {
                 {match.handLevel} / {match.group}
               </span>
               <span className={`px-2 py-1 rounded-full text-xs ${statusStyle[match.status]}`}>
-                แข่งอยู่
+                กำลังแข่งขัน
               </span>
             </div>
             <div className="mt-1">

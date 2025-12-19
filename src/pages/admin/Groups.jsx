@@ -3,19 +3,18 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { API } from "@/lib/api.js";
 import { HAND_LEVEL_OPTIONS } from "@/lib/types.js";
+import { useTournament } from "@/contexts/TournamentContext"; 
 
 // --- Constants & Styles ---
 const COLUMN = {
   thLeft: "px-3 py-2 text-left",
-  thCenter: "px-3 py-2 text-center",
+  thCenter: "px-2 py-2 text-center",
   td: "px-3 py-2",
-  tdCenter: "px-3 py-2 text-center",
+  tdCenter: "px-2 py-2 text-center",
   tdPlayer: "px-3 py-2 text-slate-600",
   tdTeam: "px-3 py-2 font-medium",
   tdPoints: "px-3 py-2 text-center font-semibold",
 };
-
-const DEFAULT_HAND = HAND_LEVEL_OPTIONS[0]?.value ?? "";
 
 // --- Helpers ---
 const scoreAt = (scores, index) => {
@@ -25,7 +24,6 @@ const scoreAt = (scores, index) => {
 
 // --- Components ---
 
-// Modal สำหรับแก้ไขลำดับพิเศษ (Force Rank)
 function RankEditModal({ groupName, teams, onClose, onSave }) {
   const [ranks, setRanks] = useState(
     teams.map(t => ({ 
@@ -111,15 +109,36 @@ function RankEditModal({ groupName, teams, onClose, onSave }) {
 // --- Main Page ---
 
 export default function AdminGroupsPage() {
-  const [hand, setHand] = useState(DEFAULT_HAND);
-  const [dataset, setDataset] = useState({ level: DEFAULT_HAND, groups: [] });
+  const { selectedTournament } = useTournament(); 
+
+  const handOptions = useMemo(() => {
+    const cats = selectedTournament?.settings?.categories || [];
+    if (cats.length > 0) {
+      return cats.map(c => ({ value: c, label: c }));
+    }
+    return HAND_LEVEL_OPTIONS.map((opt) => ({
+      value: opt.value,
+      label: opt.labelShort || opt.label || opt.value,
+    }));
+  }, [selectedTournament]);
+
+  const [hand, setHand] = useState(""); 
+  const [dataset, setDataset] = useState({ level: "", groups: [] });
   const [loading, setLoading] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
-  const [mocking, setMocking] = useState(false); // ✅ เพิ่ม State สำหรับปุ่ม Mock
+  const [mocking, setMocking] = useState(false);
   const [error, setError] = useState("");
   
   const [editingGroup, setEditingGroup] = useState(null);
+
+  useEffect(() => {
+    if (handOptions.length > 0 && !hand) {
+        setHand(handOptions[0].value);
+    } else if (handOptions.length > 0 && !handOptions.find(h => h.value === hand)) {
+        setHand(handOptions[0].value);
+    }
+  }, [handOptions, hand]);
 
   const load = useCallback(async () => {
     if (!hand) return;
@@ -137,17 +156,25 @@ export default function AdminGroupsPage() {
   }, [hand]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if(hand) load();
+  }, [load, hand]);
 
-  const handOptions = useMemo(
-    () =>
-      HAND_LEVEL_OPTIONS.map((opt) => ({
-        value: opt.value,
-        label: opt.labelShort || opt.label || opt.value,
-      })),
-    []
-  );
+  // ✅ [Dynamic] คำนวณจำนวนคอลัมน์ M1, M2... ตามจำนวนทีมที่มากที่สุดในกลุ่ม
+  const matchCols = useMemo(() => {
+    const groups = dataset?.groups || [];
+    if (groups.length === 0) return [0, 1, 2]; // Default 3 columns
+    
+    let maxTeamCount = 0;
+    groups.forEach(g => {
+        if (g.teams.length > maxTeamCount) maxTeamCount = g.teams.length;
+    });
+    
+    // จำนวนแมตช์ = จำนวนทีม - 1 (แข่งพบกันหมด)
+    // แต่ขั้นต่ำขอแสดง 3 ช่อง เพื่อความสวยงาม
+    const cols = Math.max(3, maxTeamCount - 1); 
+    
+    return Array.from({ length: cols }, (_, i) => i);
+  }, [dataset]);
 
   const handleClear = useCallback(async () => {
     if (!hand) return;
@@ -156,14 +183,18 @@ export default function AdminGroupsPage() {
     setClearing(true);
     setError("");
     try {
-      await API.clearStandings({ handLevel: hand, resetMatches: true });
+      await API.clearStandings({ 
+        handLevel: hand, 
+        resetMatches: true,
+        tournamentId: selectedTournament?._id 
+      });
       await load();
     } catch (e) {
       setError(e.message || "เคลียร์คะแนนไม่สำเร็จ");
     } finally {
       setClearing(false);
     }
-  }, [hand, load]);
+  }, [hand, load, selectedTournament]);
 
   const handleRecalculate = useCallback(async () => {
     if (!hand) return;
@@ -174,7 +205,7 @@ export default function AdminGroupsPage() {
     try {
       await API.recalculateStandings({
         handLevel: hand,
-        tournamentId: "default",
+        tournamentId: selectedTournament?._id,
       });
       await load();
       alert("คำนวณคะแนนใหม่เรียบร้อย ✅");
@@ -184,9 +215,8 @@ export default function AdminGroupsPage() {
     } finally {
       setRecalculating(false);
     }
-  }, [hand, load]);
+  }, [hand, load, selectedTournament]);
 
-  // ✅✅✅ เพิ่มฟังก์ชัน handleMock ตรงนี้ ✅✅✅
   const handleMock = useCallback(async () => {
     if (!hand) return;
     if (!window.confirm(`⚠️ ยืนยันการ "จำลองคะแนน" (Mock) สำหรับรุ่น ${hand} ?\nระบบจะสุ่มคะแนนใส่เฉพาะแมตช์ที่ยังไม่แข่งเท่านั้น`)) return;
@@ -194,7 +224,10 @@ export default function AdminGroupsPage() {
     setMocking(true);
     setError("");
     try {
-      await API.mockScores({ handLevel: hand });
+      await API.mockScores({ 
+        handLevel: hand,
+        tournamentId: selectedTournament?._id
+      });
       await load();
       alert(`🎲 Mock คะแนนสำหรับรุ่น ${hand} เรียบร้อย!`);
     } catch (e) {
@@ -203,9 +236,8 @@ export default function AdminGroupsPage() {
     } finally {
       setMocking(false);
     }
-  }, [hand, load]);
+  }, [hand, load, selectedTournament]);
 
-  // ฟังก์ชันบันทึก Manual Rank
   const handleSaveRanks = async (updates) => {
     try {
       await API.updateTeamRanks(updates); 
@@ -219,7 +251,7 @@ export default function AdminGroupsPage() {
   const groups = dataset?.groups ?? [];
 
   return (
-    <div className="px-6 py-6">
+    <div className="px-6 py-6 pb-20">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
         <h2 className="text-2xl font-bold text-slate-800">ตารางคะแนน (Admin)</h2>
         <div className="flex flex-wrap gap-2 items-center">
@@ -260,7 +292,6 @@ export default function AdminGroupsPage() {
             {clearing ? "..." : "ล้างคะแนน"}
           </button>
 
-          {/* ✅✅✅ ปุ่ม Mock คะแนน ✅✅✅ */}
           <button
             className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 shadow-sm flex items-center gap-1"
             onClick={handleMock}
@@ -281,7 +312,14 @@ export default function AdminGroupsPage() {
         </div>
       )}
 
-      {groups.length === 0 ? (
+      {!hand && (
+         <div className="text-slate-400 text-center py-16 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+            <div className="text-4xl mb-2">👋</div>
+            กรุณาเลือกประเภทการแข่งขัน หรือสร้างประเภทการแข่งขันในเมนู Generator
+         </div>
+      )}
+
+      {hand && groups.length === 0 ? (
         <div className="text-slate-400 text-center py-16 bg-slate-50 rounded-xl border border-dashed border-slate-300">
           <div className="text-4xl mb-2">📭</div>
           ไม่มีข้อมูลกลุ่ม หรือยังไม่ได้สร้างสายการแข่งขัน
@@ -301,7 +339,6 @@ export default function AdminGroupsPage() {
                    </span>
                 </div>
                 
-                {/* ปุ่มเปิด Modal แก้ไขลำดับ */}
                 <button 
                   onClick={() => setEditingGroup(group)}
                   className="text-xs flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-100 hover:border-amber-300 transition-colors font-medium"
@@ -317,9 +354,18 @@ export default function AdminGroupsPage() {
                       <th rowSpan={2} className={COLUMN.thCenter}>อันดับ</th>
                       <th rowSpan={2} className={COLUMN.thLeft}>ทีม</th>
                       <th rowSpan={2} className={COLUMN.thCenter}>Manual</th>
-                      <th rowSpan={2} className={COLUMN.thCenter + " border-l"}>Match1</th>
-                      <th rowSpan={2} className={COLUMN.thCenter}>Match2</th>
-                      <th rowSpan={2} className={COLUMN.thCenter + " border-r"}>Match3</th>
+                      
+                      {/* ✅ [Dynamic] วนลูปสร้าง Header M1, M2... ตาม matchCols */}
+                      {matchCols.map((colIndex, i) => (
+                        <th 
+                            key={colIndex} 
+                            rowSpan={2} 
+                            className={COLUMN.thCenter + (i === 0 ? " border-l" : "") + (i === matchCols.length - 1 ? " border-r" : "")}
+                        >
+                            M{colIndex + 1}
+                        </th>
+                      ))}
+
                       <th rowSpan={2} className={COLUMN.thCenter}>แข่ง</th>
                       <th rowSpan={2} className={COLUMN.thCenter}>ชนะ</th>
                       <th rowSpan={2} className={COLUMN.thCenter}>แพ้</th>
@@ -350,7 +396,6 @@ export default function AdminGroupsPage() {
                           </div>
                         </td>
 
-                        {/* Manual Rank Indicator */}
                         <td className={COLUMN.tdCenter}>
                            {team.manualRank > 0 ? (
                              <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold border border-amber-200" title={`Force Rank: ${team.manualRank}`}>
@@ -361,16 +406,15 @@ export default function AdminGroupsPage() {
                            )}
                         </td>
                         
-                        {/* Match Scores */}
-                        <td className={COLUMN.tdCenter + " border-l bg-slate-50/50 text-xs"}>
-                          {scoreAt(team.matchScores, 0)}
-                        </td>
-                        <td className={COLUMN.tdCenter + " bg-slate-50/50 text-xs"}>
-                          {scoreAt(team.matchScores, 1)}
-                        </td>
-                        <td className={COLUMN.tdCenter + " border-r bg-slate-50/50 text-xs"}>
-                          {scoreAt(team.matchScores, 2)}
-                        </td>
+                        {/* ✅ [Dynamic] วนลูปสร้างช่องคะแนนตาม matchCols */}
+                        {matchCols.map((colIndex, i) => (
+                            <td 
+                                key={colIndex} 
+                                className={COLUMN.tdCenter + " text-xs " + (i === 0 ? "border-l bg-slate-50/50" : (i === matchCols.length-1 ? "border-r bg-slate-50/50" : "bg-slate-50/50"))}
+                            >
+                                {scoreAt(team.matchScores, colIndex)}
+                            </td>
+                        ))}
 
                         <td className={COLUMN.tdCenter}>{team.matchesPlayed ?? 0}</td>
                         <td className={COLUMN.tdCenter + " text-emerald-600 font-medium"}>{team.wins ?? 0}</td>
@@ -401,7 +445,6 @@ export default function AdminGroupsPage() {
         </div>
       )}
 
-      {/* Modal Popup */}
       {editingGroup && (
         <RankEditModal 
           groupName={editingGroup.groupName} 

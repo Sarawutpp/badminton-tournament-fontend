@@ -8,25 +8,19 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useTournament } from "../contexts/TournamentContext"; // Import
 
 const NAV = [
   { to: "/admin/players", label: "Players", icon: "👤" },
   { to: "/admin/teams", label: "Teams", icon: "👥" },
   { to: "/admin/generator", label: "Generator", icon: "✨" },
   { to: "/admin/schedule-plan", label: "Schedule Plan", icon: "🗓️" },
+  { to: "/admin/manual-match", label: "สร้างแมตช์ (Manual)", icon: "➕" },
   { to: "/admin/court-running", label: "Court Running", icon: "🏸" },
   { to: "/admin/matches", label: "Matches (Scoring)", icon: "📋" },
   { to: "/admin/standings", label: "Admin Standings", icon: "📊" },
-  {
-    to: "/admin/knockout/bracket",
-    label: "จัดสาย Knockout",
-    icon: "🧩",
-  },
-  {
-    to: "/admin/knockout/scoring",
-    label: "กรอกคะแนน Knockout",
-    icon: "🏆",
-  },
+  { to: "/admin/knockout/bracket", label: "จัดสาย Knockout", icon: "🧩" },
+  { to: "/admin/knockout/scoring", label: "กรอกคะแนน Knockout", icon: "🏆" },
   { to: "/admin/print-batch", label: "พิมพ์ใบคะแนน", icon: "🖨️" },
 ];
 
@@ -74,6 +68,7 @@ export default function AdminLayout() {
   const [collapsed, setCollapsed] = React.useState(false);
 
   const { user, logout } = useAuth();
+  const { selectedTournament, clearTournament } = useTournament(); // Use Context
   const navigate = useNavigate();
 
   async function handleLogout() {
@@ -82,20 +77,25 @@ export default function AdminLayout() {
   }
 
   return (
-    // ✅ ปรับ Layout หลัก: มือถือเป็น Flex-col ธรรมดา, Desktop เป็น Grid
     <div className="min-h-screen bg-gray-50 flex flex-col lg:grid lg:grid-cols-[auto_1fr] lg:grid-rows-[auto_1fr]">
       
       {/* TOPBAR */}
       <header className="sticky top-0 z-30 lg:col-span-2 flex items-center justify-between gap-4 p-3 md:p-4 border-b bg-white/95 backdrop-blur-sm shadow-sm lg:shadow-none">
         <div className="flex items-center gap-3">
-          {/* ปุ่ม Hamburger โชว์เฉพาะมือถือ (lg:hidden) */}
           <Button className="lg:hidden p-2" onClick={() => setOpen(true)}>
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </Button>
-          <div className="font-bold text-base md:text-lg text-indigo-800 truncate">
-            🏸 <span className="hidden xs:inline">Badminton Admin</span>
+          <div className="font-bold text-base md:text-lg text-indigo-800 truncate flex items-center gap-2">
+            <span>🏸</span>
+            <span className="hidden xs:inline">Badminton Admin</span>
+            {/* Show Selected Tournament Name */}
+            {selectedTournament && (
+               <span className="bg-orange-100 text-orange-800 text-xs px-2 py-0.5 rounded-md ml-2 border border-orange-200">
+                 {selectedTournament.name}
+               </span>
+            )}
           </div>
         </div>
 
@@ -103,6 +103,11 @@ export default function AdminLayout() {
           <NavLink to="/public" className="hidden sm:block">
             <Button>Public Site</Button>
           </NavLink>
+
+          {/* ปุ่ม Switch Event */}
+          <Button onClick={clearTournament} className="text-xs border-orange-200 text-orange-700 hover:bg-orange-50">
+            🔁 Switch Event
+          </Button>
 
           {user ? (
             <div className="hidden md:flex items-center gap-2 text-sm text-gray-700">
@@ -117,7 +122,6 @@ export default function AdminLayout() {
             <Button onClick={() => navigate("/login")}>Login</Button>
           )}
 
-          {/* ปุ่ม Collapse Sidebar โชว์เฉพาะ Desktop */}
           <Button
             className="hidden lg:block"
             onClick={() => setCollapsed((v) => !v)}
@@ -127,8 +131,7 @@ export default function AdminLayout() {
         </div>
       </header>
 
-      {/* SIDEBAR (Desktop Only) */}
-      {/* ✅ เพิ่ม hidden lg:flex เพื่อซ่อนบนมือถือ */}
+      {/* SIDEBAR */}
       <aside
         className={`hidden lg:flex sticky top-[69px] z-20 h-[calc(100vh-69px)] flex-col justify-between p-4 border-r bg-white transition-all duration-300 ${
           collapsed ? "w-20" : "w-64"
@@ -150,15 +153,13 @@ export default function AdminLayout() {
         </nav>
       </aside>
 
-      {/* DRAWER (Mobile Only Overlay) */}
+      {/* DRAWER (Mobile) */}
       {open && (
         <div className="fixed inset-0 z-50 lg:hidden" role="dialog" aria-modal="true">
-          {/* Backdrop */}
           <div
             className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm transition-opacity"
             onClick={() => setOpen(false)}
           />
-          {/* Drawer Content */}
           <div className="fixed top-0 left-0 z-50 h-full w-[80%] max-w-sm bg-white p-4 shadow-2xl flex flex-col animate-in slide-in-from-left duration-200">
             <div className="flex items-center justify-between mb-6 border-b pb-4">
               <div className="font-bold text-lg text-indigo-800">Menu</div>
@@ -179,6 +180,10 @@ export default function AdminLayout() {
             </nav>
 
             <div className="mt-auto border-t pt-4 space-y-3">
+              <Button onClick={clearTournament} className="w-full justify-center border-orange-200 text-orange-700 bg-orange-50">
+                  🔁 เปลี่ยนรายการแข่งขัน
+              </Button>
+
               <NavLink to="/public" onClick={() => setOpen(false)} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-700 hover:bg-gray-100">
                 <span className="text-lg">🌍</span>
                 <span className="font-medium">Public Site</span>

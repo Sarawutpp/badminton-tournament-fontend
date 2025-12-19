@@ -1,10 +1,15 @@
-import React, { useState, useRef } from "react";
+// src/pages/admin/PrintBatchPage.jsx
+
+import React, { useState, useRef, useMemo } from "react";
 import { API } from "@/lib/api";
 import { HAND_LEVEL_OPTIONS } from "@/lib/types";
-import { useReactToPrint } from "react-to-print"; // import library
+import { useReactToPrint } from "react-to-print"; 
 import CompactScoreSheet from "@/components/print/CompactScoreSheet"; 
+import { useTournament } from "@/contexts/TournamentContext"; // ✅ 1. Import Context
 
 export default function PrintBatchPage() {
+  const { selectedTournament } = useTournament(); // ✅ 2. ดึง Tournament Context
+
   const [matches, setMatches] = useState([]);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [loading, setLoading] = useState(false);
@@ -15,6 +20,19 @@ export default function PrintBatchPage() {
     group: "",
     status: "scheduled", // default: รอแข่ง
   });
+
+  // ✅ 3. สร้าง Hand Options แบบ Dynamic
+  const handOptions = useMemo(() => {
+    const cats = selectedTournament?.settings?.categories || [];
+    if (cats.length > 0) {
+      return cats.map(c => ({ value: c, label: c }));
+    }
+    // Fallback ใช้ค่าเดิมถ้าไม่มี Config
+    return HAND_LEVEL_OPTIONS.map(opt => ({
+       value: opt.value,
+       label: opt.labelShort || opt.label || opt.value
+    }));
+  }, [selectedTournament]);
 
   // Ref สำหรับพื้นที่ที่จะปริ้น
   const printRef = useRef();
@@ -29,7 +47,8 @@ export default function PrintBatchPage() {
         group: filters.group,
         status: filters.status,
         pageSize: 200, 
-        sort: "matchNo" // เรียงตามลำดับแมตช์
+        sort: "matchNo", // เรียงตามลำดับแมตช์
+        tournamentId: selectedTournament?._id // ✅ 4. ส่ง tournamentId ไปด้วย
       });
       setMatches(res.items || []);
       setSelectedIds(new Set()); // รีเซ็ตการเลือก
@@ -58,7 +77,7 @@ export default function PrintBatchPage() {
 
   // 3. ฟังก์ชันสั่งปริ้น (หัวใจสำคัญ)
   const handlePrint = useReactToPrint({
-    contentRef: printRef, // ใช้ contentRef สำหรับ v3 หรือ content สำหรับ v2
+    contentRef: printRef, 
     documentTitle: "Badminton_ScoreSheets",
   });
 
@@ -84,7 +103,8 @@ export default function PrintBatchPage() {
               onChange={e => setFilters({...filters, handLevel: e.target.value})}
             >
               <option value="">-- ทั้งหมด --</option>
-              {HAND_LEVEL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {/* ✅ 5. ใช้ handOptions ที่สร้างแบบ Dynamic */}
+              {handOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
           

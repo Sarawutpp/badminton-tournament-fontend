@@ -4,6 +4,7 @@
 import React from "react";
 import { API, teamName } from "@/lib/api.js";
 import { HAND_LEVEL_OPTIONS } from "@/lib/types.js"; 
+import { useTournament } from "@/contexts/TournamentContext"; // ✅ 1. Import Context
 
 const pageSize = 5000;
 
@@ -80,6 +81,8 @@ function SettingsModal({ isOpen, onClose, initialConfig, onSave, defaultList }) 
 // ============ Component หลัก ============
 
 export default function AdminSchedulePlan() {
+  const { selectedTournament } = useTournament(); // ✅ 2. เรียกใช้ Context
+
   const [hand, setHand] = React.useState("");
   const [status, setStatus] = React.useState("");
   const [q, setQ] = React.useState("");
@@ -90,14 +93,36 @@ export default function AdminSchedulePlan() {
   const [err, setErr] = React.useState("");
   const [selectedIds, setSelectedIds] = React.useState(new Set());
 
-  // Config State
-  const defaultFromConst = HAND_LEVEL_OPTIONS.map(opt => opt.value).join("\n");
+  // ✅ 3. สร้าง Options แบบ Dynamic
+  const handOptions = React.useMemo(() => {
+    const cats = selectedTournament?.settings?.categories || [];
+    if (cats.length > 0) {
+      return cats.map(c => ({ value: c, label: c }));
+    }
+    // Fallback ใช้ค่าเดิม
+    return HAND_LEVEL_OPTIONS.map(opt => ({
+       value: opt.value,
+       label: opt.labelShort || opt.label || opt.value
+    }));
+  }, [selectedTournament]);
+
+  // Config State (ใช้ handOptions แทน HAND_LEVEL_OPTIONS)
+  const defaultFromConst = handOptions.map(opt => opt.value).join("\n");
+  
   const [sessionConfig, setSessionConfig] = React.useState(() => {
     try {
       const saved = localStorage.getItem("scheduleSessionConfig");
       return saved ? saved : defaultFromConst;
     } catch (e) { return defaultFromConst; }
   });
+  
+  // Update default config เมื่อ handOptions เปลี่ยน (กรณีโหลดข้อมูลเสร็จทีหลัง)
+  React.useEffect(() => {
+     if (handOptions.length > 0 && (!sessionConfig || sessionConfig === HAND_LEVEL_OPTIONS.map(o=>o.value).join("\n"))) {
+         setSessionConfig(handOptions.map(o => o.value).join("\n"));
+     }
+  }, [handOptions]);
+
   React.useEffect(() => { localStorage.setItem("scheduleSessionConfig", sessionConfig); }, [sessionConfig]);
   const [showSettings, setShowSettings] = React.useState(false);
 
@@ -106,9 +131,13 @@ export default function AdminSchedulePlan() {
     try {
       setLoading(true);
       setErr("");
+      // ✅ ส่ง tournamentId ไปด้วย เพื่อให้ API filter ถูกรายการ
       const res = await API.listSchedule({
         page: 1, pageSize,
-        handLevel: hand || undefined, status: status || undefined, q: q || undefined,
+        handLevel: hand || undefined, 
+        status: status || undefined, 
+        q: q || undefined,
+        tournamentId: selectedTournament?._id 
       });
 
       let rawItems = [];
@@ -132,7 +161,7 @@ export default function AdminSchedulePlan() {
     finally { setLoading(false); }
   };
 
-  React.useEffect(() => { load(); }, [hand, status, q]);
+  React.useEffect(() => { load(); }, [hand, status, q, selectedTournament]); // Reload เมื่อเปลี่ยนทัวร์นาเมนต์
   const items = data.items || [];
   
   // นับจำนวน Unsorted เพื่อแสดงใน Divider
@@ -306,11 +335,12 @@ export default function AdminSchedulePlan() {
           </button>
         </header>
 
-        {/* Filters & Sticky Actions (คงเดิม) */}
+        {/* Filters & Sticky Actions */}
         <div className="flex flex-wrap gap-2 mb-4">
           <select className="border rounded px-2 py-2 text-sm bg-white" value={hand} onChange={(e) => setHand(e.target.value)}>
             <option value="">ทุกระดับมือ</option>
-            {HAND_LEVEL_OPTIONS.map((opt) => (<option key={opt.value} value={opt.value}>{opt.labelShort || opt.label}</option>))}
+            {/* ✅ 4. ใช้ handOptions แทน HAND_LEVEL_OPTIONS */}
+            {handOptions.map((opt) => (<option key={opt.value} value={opt.value}>{opt.label}</option>))}
           </select>
           <select className="border rounded px-2 py-2 text-sm bg-white" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="">ทุกสถานะ</option>
@@ -338,7 +368,7 @@ export default function AdminSchedulePlan() {
            </div>
         </div>
 
-        {/* ============ Table (New UI) ============ */}
+        {/* ============ Table ============ */}
         <div className="bg-white rounded-2xl shadow ring-1 ring-slate-200 overflow-hidden">
           {/* Header */}
           <div className="bg-slate-100 border-b text-[12px] uppercase tracking-wide grid grid-cols-12 gap-2 px-3 py-3 font-bold text-slate-500 items-center">
@@ -354,9 +384,9 @@ export default function AdminSchedulePlan() {
             {items.map((m, i) => {
                const isSelected = selectedIds.has(m._id);
                // เช็คว่า "จัดแล้ว" หรือไม่ (Order > 0)
-               const isSorted = m.orderIndex > 0;
+               const isSorted = Number(m.orderIndex) > 0;
                // เช็คว่าจะแสดง Divider ไหม
-               const showDivider = !isSorted && (i === 0 || (items[i-1] && items[i-1].orderIndex > 0));
+               const showDivider = !isSorted && (i === 0 || (items[i-1] && Number(items[i-1].orderIndex) > 0));
 
                return (
                 <React.Fragment key={m._id}>

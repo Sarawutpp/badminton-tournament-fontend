@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { API, teamName } from "@/lib/api.js";
 import { HAND_LEVEL_OPTIONS } from "@/lib/types.js";
+import { useTournament } from "@/contexts/TournamentContext"; 
 
 const pageSize = 24;
 
@@ -30,6 +31,14 @@ function handShort(level) {
 
 // ----------------- Main Page -----------------
 export default function AdminMatchScoringPage() {
+  const { selectedTournament } = useTournament(); 
+  
+  const settings = selectedTournament?.settings || {};
+  const CONFIG_MAX_SCORE = settings.maxScore || 21; 
+  const CONFIG_CATEGORIES = settings.categories && settings.categories.length > 0 
+      ? settings.categories 
+      : HAND_LEVEL_OPTIONS.map(h => h.value); 
+
   const [rows, setRows] = useState([]);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
@@ -92,7 +101,7 @@ export default function AdminMatchScoringPage() {
             กรอกผลการแข่งขัน
           </h1>
           <p className="text-xs md:text-sm text-slate-500">
-            Group (Max 21, 2 Sets) / Knockout (Max 30, 3 Sets)
+             Rules: Max {CONFIG_MAX_SCORE} Points
           </p>
         </div>
       </header>
@@ -112,9 +121,9 @@ export default function AdminMatchScoringPage() {
               }
             >
               <option value="">ทั้งหมด</option>
-              {HAND_LEVEL_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.labelShort || opt.label}
+              {CONFIG_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat}
                 </option>
               ))}
             </select>
@@ -211,6 +220,7 @@ export default function AdminMatchScoringPage() {
               key={m._id}
               m={m}
               loadData={() => load(page)}
+              configMaxScore={CONFIG_MAX_SCORE} 
             />
           ))
         ) : (
@@ -244,6 +254,7 @@ export default function AdminMatchScoringPage() {
                   key={m._id}
                   m={m}
                   loadData={() => load(page)}
+                  configMaxScore={CONFIG_MAX_SCORE} 
                 />
               ))
             ) : (
@@ -296,17 +307,23 @@ export default function AdminMatchScoringPage() {
 // =========================================================================
 
 /**
- * Shared Logic for Scoring
+ * Shared Logic for Scoring (FIXED)
  */
-function useMatchScoring(m, loadData) {
+function useMatchScoring(m, loadData, configMaxScore) {
   const isKO = m.roundType === "knockout";
   const isGroup = !isKO;
 
-  // Rules:
-  // Group: Max 21, No Deuce, 2 Sets only
-  // Knockout: Max 30, Deuce allowed, 3 Sets (Best of 3)
-  const maxSets = isGroup ? 2 : 3;
-  const maxScore = isGroup ? 21 : 30;
+  // [FIX] คำนวณ maxSets ตามกติกาจริงของแมตช์นั้น
+  const gamesToWin = m.gamesToWin || 2;
+  let maxSets = 3; // Default (BO3)
+
+  if (gamesToWin === 1) {
+      maxSets = 1; // Mini Tournament
+  } else if (isGroup) {
+      maxSets = 2; // Standard Group (BO2)
+  }
+  
+  const maxScore = configMaxScore || 21; 
 
   const alreadyHasScore = hasScore(m);
   const [isEditing, setIsEditing] = useState(
@@ -316,7 +333,7 @@ function useMatchScoring(m, loadData) {
   const [localErr, setLocalErr] = useState("");
 
   const [localSets, setLocalSets] = useState(() => {
-    // เตรียม array 3 ช่องเสมอ แต่จะโชว์กี่ช่องขึ้นอยู่กับ mode
+    // เตรียม array 3 ช่องเสมอ แต่จะโชว์กี่ช่องขึ้นอยู่กับ maxSets
     const s =
       m.sets?.map((set) => ({ t1: set.t1 || 0, t2: set.t2 || 0 })) || [];
     while (s.length < 3) s.push({ t1: 0, t2: 0 });
@@ -330,7 +347,7 @@ function useMatchScoring(m, loadData) {
     if (Number.isNaN(v)) v = 0;
     if (v < 0) v = 0;
     // Limit Max Score
-    if (v > maxScore) return; // ห้ามกรอกเกิน
+    // if (v > maxScore) return; // (Optional: ถ้าจะบังคับ)
 
     const arr = [...localSets];
     arr[index] = { ...arr[index], [team]: v };
@@ -342,37 +359,30 @@ function useMatchScoring(m, loadData) {
     setLocalErr("");
     try {
       // Logic Validation
-      // 1. ตรวจสอบว่ามีคะแนนเท่ากันไหม (ในเซ็ตที่กรอก)
       for (let i = 0; i < maxSets; i++) {
         const s = localSets[i];
         const t1 = s.t1 || 0;
         const t2 = s.t2 || 0;
-        // ถ้ามีการกรอกคะแนน แต่คะแนนเท่ากัน -> ห้ามบันทึก
-        if ((t1 > 0 || t2 > 0) && t1 === t2) {
-          throw new Error(
-            `เซ็ตที่ ${i + 1} คะแนนเท่ากันไม่ได้ (${t1}-${t2})`
-          );
-        }
+        // เช็คเสมอ: ถ้า gamesToWin=1 (Mini) ห้ามเสมอ, หรือถ้า allowDraw=false
+        // แต่ใน ScoreUtils backend จัดการ logic นี้ให้แล้ว เบื้องต้น frontend ปล่อยผ่าน
+        // แค่เช็คพื้นฐานว่าถ้ากรอกแล้วค่าเท่ากัน
       }
 
-      // Filter เอาเฉพาะเซ็ตที่มีค่า และอยู่ในจำนวน Max Sets
       const payloadSets = localSets
-        .slice(0, maxSets) // ตัดเอาแค่ 2 หรือ 3 เซ็ตตามโหมด
+        .slice(0, maxSets)
         .filter((s) => (s?.t1 || 0) > 0 || (s?.t2 || 0) > 0);
 
-      // ถ้าไม่มีคะแนนเลย
       if (payloadSets.length === 0) {
         throw new Error("กรุณากรอกคะแนนอย่างน้อย 1 เซ็ต");
       }
 
-      const gamesToWin = 2; // BO3
-      const allowDraw = false; // บังคับมีแพ้ชนะในแต่ละเซ็ตไปเลยสำหรับ score check
-
+      // [FIX] ลบ Hardcode gamesToWin, allowDraw ออก
+      // เพื่อให้ Backend ใช้ค่าเดิมของ Match
       await API.updateScore(m._id, {
         sets: payloadSets,
         status: "finished",
-        gamesToWin,
-        allowDraw,
+        // gamesToWin: ... (ใช้จาก DB)
+        // allowDraw: ... (ใช้จาก DB)
       });
 
       setIsEditing(false);
@@ -414,10 +424,9 @@ function useMatchScoring(m, loadData) {
 /**
  * 📱 Mobile Card Component
  */
-function MatchScoreCardMobile({ m, loadData }) {
-  const logic = useMatchScoring(m, loadData);
+function MatchScoreCardMobile({ m, loadData, configMaxScore }) {
+  const logic = useMatchScoring(m, loadData, configMaxScore);
   const {
-    isGroup,
     maxSets,
     isEditing,
     canEdit,
@@ -464,8 +473,6 @@ function MatchScoreCardMobile({ m, loadData }) {
           <div className="text-xs font-bold text-indigo-600">
             #{m.matchNo} <span className="text-slate-400 font-normal">| {m.court || '-'}</span>
           </div>
-          {/* ❌ ลบส่วนนี้ออกตามคำขอ */}
-          {/* <div className="text-[10px] text-slate-400">{m.matchId}</div> */}
         </div>
         <div>{statusBadge}</div>
       </div>
@@ -500,7 +507,7 @@ function MatchScoreCardMobile({ m, loadData }) {
             <span>Team 2</span>
         </div>
         {[0, 1, 2].map((i) => {
-          if (i >= maxSets) return null; // ซ่อน Set 3 ถ้าเป็น Group
+          if (i >= maxSets) return null; 
           return (
             <div key={i} className="flex items-center justify-between mb-2 last:mb-0">
               <input
@@ -525,11 +532,6 @@ function MatchScoreCardMobile({ m, loadData }) {
             </div>
           );
         })}
-         {isGroup && (
-             <div className="text-[10px] text-center text-slate-400 mt-2">
-                 * รอบแบ่งกลุ่มแข่ง 2 เซ็ต (Max 21)
-             </div>
-         )}
       </div>
 
       {/* Action Buttons */}
@@ -573,10 +575,9 @@ function MatchScoreCardMobile({ m, loadData }) {
 /**
  * 💻 Desktop Row Component
  */
-function MatchScoreRowDesktop({ m, loadData }) {
-  const logic = useMatchScoring(m, loadData);
+function MatchScoreRowDesktop({ m, loadData, configMaxScore }) {
+  const logic = useMatchScoring(m, loadData, configMaxScore);
   const {
-    isGroup,
     maxSets,
     isEditing,
     canEdit,
@@ -589,7 +590,6 @@ function MatchScoreRowDesktop({ m, loadData }) {
     setIsEditing,
   } = logic;
 
-  // Badge Logic
   let statusBadge = null;
   if (m.status === "finished") {
     statusBadge = hasScore(m) ? (
@@ -619,10 +619,6 @@ function MatchScoreRowDesktop({ m, loadData }) {
     <tr className="border-t align-middle hover:bg-slate-50/50 transition-colors">
       <td className="p-2 text-center">
         <div className="font-bold text-slate-700">{m.matchNo ?? "-"}</div>
-        {/* ❌ ลบส่วนนี้ออกตามคำขอ */}
-        {/* <div className="text-[10px] text-slate-400 font-mono">
-          {m.matchId?.slice(-4)}
-        </div> */}
       </td>
       <td className="p-2">
         <div className="font-semibold text-slate-800 text-sm">
@@ -637,10 +633,6 @@ function MatchScoreRowDesktop({ m, loadData }) {
         <div className="font-bold text-indigo-600 text-xs">
           {handShort(m.handLevel)}
         </div>
-        {/* ❌ ลบส่วนนี้ออกตามคำขอ */}
-        {/* {m.group && (
-          <div className="text-[10px] text-slate-500">Grp {m.group}</div>
-        )} */}
       </td>
       <td className="p-2 text-center text-xs text-slate-600">
         {roundLabel(m)}

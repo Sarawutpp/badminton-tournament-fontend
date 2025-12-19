@@ -1,10 +1,12 @@
 // src/pages/admin/KnockoutBracketAdminPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { API } from "@/lib/api"; // <--- เพิ่มบรรทัดนี้ครับ
+import { API } from "@/lib/api";
+import { useTournament } from "@/contexts/TournamentContext"; // 1. Import Context
 
 // --- Constants & Helpers ---
 
-const HAND_LEVEL_OPTIONS = [
+// Fallback ค่าเดิมเผื่อไม่มี Config หรือยังโหลดไม่เสร็จ
+const DEFAULT_HAND_OPTIONS = [
   { label: "Baby", value: "Baby", labelShort: "Baby" },
   { label: "BG-", value: "BG-", labelShort: "BG-" },
   { label: "BG(Mix)", value: "BG(Mix)", labelShort: "Mix" },
@@ -104,7 +106,23 @@ function BracketMatchRow({ match }) {
 // --- Main Page ---
 
 export default function KnockoutBracketAdminPage() {
-  const [handLevel, setHandLevel] = useState(HAND_LEVEL_OPTIONS[0].value);
+  const { selectedTournament } = useTournament(); // 2. ดึง Config
+
+  // 3. คำนวณ Hand Options จาก Config
+  const handOptions = useMemo(() => {
+    const cats = selectedTournament?.settings?.categories;
+    if (cats && cats.length > 0) {
+      return cats.map((c) => ({
+        label: c,
+        value: c,
+        labelShort: c,
+      }));
+    }
+    return DEFAULT_HAND_OPTIONS;
+  }, [selectedTournament]);
+
+  // ตั้งค่า Default handLevel
+  const [handLevel, setHandLevel] = useState(handOptions[0]?.value || "");
   const [roundCode, setRoundCode] = useState("QF");
 
   const [matches, setMatches] = useState([]);
@@ -112,16 +130,21 @@ export default function KnockoutBracketAdminPage() {
   const [error, setError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
 
+  // 4. Update handLevel เมื่อ Config โหลดเสร็จ หรือเปลี่ยน
+  useEffect(() => {
+    // ถ้าค่าปัจจุบันไม่อยู่ใน list ใหม่ ให้ reset เป็นค่าแรก
+    if (handOptions.length > 0 && !handOptions.find((h) => h.value === handLevel)) {
+      setHandLevel(handOptions[0].value);
+    }
+  }, [handOptions, handLevel]);
+
   const loadMatches = async () => {
+    if (!handLevel) return;
+
     setLoading(true);
     setError("");
 
     try {
-      // ใช้วิธีเดิมในการโหลด matches (ใช้ fetch ตรงๆ หรือจะเปลี่ยนไปใช้ API.listMatches ก็ได้ แต่ fetch เดิมก็ทำงานได้ถ้า path ถูก)
-      // แต่ในที่นี้เราใช้ path สัมพัทธ์ /api/matches ซึ่ง vite proxy จะจัดการให้ หรือถ้ามีปัญหาให้ใช้ API.listSchedule
-      // เพื่อความชัวร์และสั้น ใช้ API wrapper ดีกว่าครับ แต่ถ้า code เดิมใช้ fetch และ work ก็ใช้ fetch ต่อได้
-      // **แต่จุดสำคัญคือปุ่ม Generate ที่ต้องใช้ API**
-
       const params = new URLSearchParams({
         roundType: "knockout",
         handLevel,
@@ -131,9 +154,6 @@ export default function KnockoutBracketAdminPage() {
         pageSize: "200",
       });
 
-      // ถ้า fetch ตรงนี้ทำงานได้ (ไม่ error 404) ก็ใช้ต่อได้ครับ
-      // แต่ถ้าจะให้ดีควรแก้เป็น API.listSchedule หรือ API.request จะปลอดภัยเรื่อง URL กว่า
-      // อย่างไรก็ตาม Code เดิมของคุณใช้ fetch แล้วดึงข้อมูลได้ (จากภาพแรกๆ) ดังนั้นตรงนี้ไม่น่าใช่ปัญหาหลัก
       const res = await fetch(`/api/matches?${params.toString()}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
@@ -157,9 +177,8 @@ export default function KnockoutBracketAdminPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handLevel, roundCode]);
 
-  // ฟังก์ชันสำหรับกดปุ่ม "ดึงทีมจากรอบแบ่งกลุ่ม"
-const handleAutoGenerate = async () => {
-    const confirmMsg = 
+  const handleAutoGenerate = async () => {
+    const confirmMsg =
       `ยืนยันการจัดสายการแข่ง (Update)?\n` +
       `- มือ: ${handLevel}\n` +
       `- รอบ: ${roundCode}\n\n` +
@@ -176,12 +195,13 @@ const handleAutoGenerate = async () => {
         round: roundCode,
       });
 
-      // ✅ แก้ตรงนี้: ใช้ updatedMatches แทน createdMatches
       const count = data.updatedMatches || 0;
       const total = data.totalSkeleton || 0;
 
-      alert(`✅ จัดสายเรียบร้อย!\nจับคู่ทีมลงตารางแล้ว ${count} คู่ (จากที่ว่างทั้งหมด ${total} ช่อง)`);
-      
+      alert(
+        `✅ จัดสายเรียบร้อย!\nจับคู่ทีมลงตารางแล้ว ${count} คู่ (จากที่ว่างทั้งหมด ${total} ช่อง)`
+      );
+
       loadMatches();
     } catch (err) {
       alert(`❌ เกิดข้อผิดพลาด: ${err.message}`);
@@ -201,8 +221,7 @@ const handleAutoGenerate = async () => {
   }, [matches]);
 
   const currentHandLabel =
-    HAND_LEVEL_OPTIONS.find((h) => h.value === handLevel)?.labelShort ||
-    handLevel;
+    handOptions.find((h) => h.value === handLevel)?.labelShort || handLevel;
   const currentRoundLabel =
     ROUND_OPTIONS.find((r) => r.value === roundCode)?.label || roundCode;
 
@@ -218,8 +237,8 @@ const handleAutoGenerate = async () => {
             ดูสายบน / สายล่าง ของแต่ละมือและรอบ
           </p>
         </div>
-        
-        {/* ปุ่ม Generate อยู่ตรงนี้ */}
+
+        {/* ปุ่ม Generate */}
         <div>
           <button
             onClick={handleAutoGenerate}
@@ -239,8 +258,9 @@ const handleAutoGenerate = async () => {
 
       {/* Filter card */}
       <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 space-y-3">
+        {/* Dynamic Hand Options */}
         <div className="flex flex-wrap gap-2">
-          {HAND_LEVEL_OPTIONS.map((h) => {
+          {handOptions.map((h) => {
             const active = h.value === handLevel;
             return (
               <button
@@ -286,7 +306,9 @@ const handleAutoGenerate = async () => {
 
         <div className="text-[11px] text-slate-500">
           มือ{" "}
-          <span className="font-semibold text-slate-900">{currentHandLabel}</span>{" "}
+          <span className="font-semibold text-slate-900">
+            {currentHandLabel}
+          </span>{" "}
           · รอบ{" "}
           <span className="font-semibold text-slate-900">
             {currentRoundLabel}

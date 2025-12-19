@@ -2,11 +2,9 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { API, teamName } from "@/lib/api.js";
-import { HAND_LEVEL_OPTIONS } from "@/lib/types.js";
+import { useTournament } from "@/contexts/TournamentContext"; // ✅ 1. Import Context
 
 // --- Constants & Configuration ---
-
-const CATEGORIES_24_TEAMS = ["BG(Men)", "BG(Mix)"];
 
 const ROUND_FLOW = ["KO32", "KO16", "QF", "SF", "F"];
 
@@ -94,7 +92,6 @@ function compareInGroup(a, b) {
 
 // --- Components ---
 
-// ✅ แก้ไข: แสดง "เซ็ต" แทน "คะแนน"
 function KnockoutMatchCard({ match, compact = false }) {
   if (match.isPlaceholder) {
     return (
@@ -118,7 +115,6 @@ function KnockoutMatchCard({ match, compact = false }) {
   }
 
   // กรณีแข่งไม่จบ หรือยังไม่แข่ง อาจจะไม่มี winner
-  // แต่ถ้ามี winner แล้ว ให้ยึดตามนั้น
   const isTeam1Win = match.winner && match.winner === match.team1?._id;
   const isTeam2Win = match.winner && match.winner === match.team2?._id;
   const isLive = match.status === "in-progress";
@@ -246,10 +242,6 @@ function BracketListView({ groupedData }) {
           </div>
 
           <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-3 md:p-5">
-            {/* ✅ แก้ไข: กรองพวกที่เป็น Group ทิ้ง (จริงๆ ถ้า backend ส่งมาถูกต้อง มันไม่ควรมี Group ปนมาใน roundType='knockout' 
-               แต่ถ้ามีหลุดมา เราจะไม่ render section นั้น หรือ render เฉพาะที่ใช่ knockout)
-            */}
-            
             {roundGroup.top.length > 0 && (
               <div className="mb-4">
                  <div className="flex items-center gap-2 mb-2">
@@ -378,19 +370,35 @@ function SeedingTableView({ seedingData }) {
 // --- Main Page Component ---
 
 export default function PublicKnockoutBracket() {
-  const [handLevel, setHandLevel] = useState(HAND_LEVEL_OPTIONS[0].value);
+  const { selectedTournament } = useTournament(); // ✅ 2. ใช้ Context
+  
+  // ✅ 3. สร้าง Options แบบ Dynamic
+  const levelOptions = useMemo(() => {
+    const cats = selectedTournament?.settings?.categories || [];
+    return cats.map(c => ({ value: c, label: c }));
+  }, [selectedTournament]);
+
+  const [handLevel, setHandLevel] = useState(""); // เริ่มต้นว่าง
   const [matches, setMatches] = useState([]);
   const [standings, setStandings] = useState(null); 
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState("list"); 
 
+  // ✅ 4. Auto Select level แรก
+  useEffect(() => {
+     if (levelOptions.length > 0 && !handLevel) {
+        setHandLevel(levelOptions[0].value);
+     }
+  }, [levelOptions, handLevel]);
+
   const fetchData = async () => {
+    if (!handLevel) return; // อย่าเพิ่งโหลดถ้ายังไม่มี level
     setLoading(true);
     try {
+      // เพิ่ม filter tournamentId (ถ้า api รองรับ auto-inject แล้วก็ไม่ต้องห่วง)
       const [matchesRes, standingsRes] = await Promise.all([
          API.listSchedule({
             handLevel,
-            // ✅ แก้ไข: เรียกเอาเฉพาะ knockout เท่านั้น เพื่อกันพวก Group หลุดมา
             roundType: "knockout", 
             pageSize: 200,
             sort: "matchNo",
@@ -398,10 +406,9 @@ export default function PublicKnockoutBracket() {
          API.getStandings(handLevel)
       ]);
 
-      // Double check filter: กรองอีกรอบเพื่อความชัวร์
       const onlyKnockout = (matchesRes.items || []).filter(m => 
           m.roundType === 'knockout' && 
-          !m.round?.toLowerCase().includes('group') // กันเหนียว: ชื่อรอบต้องไม่เป็น Group
+          !m.round?.toLowerCase().includes('group') 
       );
 
       setMatches(onlyKnockout);
@@ -417,7 +424,8 @@ export default function PublicKnockoutBracket() {
     fetchData();
     const interval = setInterval(fetchData, 60000);
     return () => clearInterval(interval);
-  }, [handLevel]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [handLevel, selectedTournament]);
 
   // Process Knockout Data
   const bracketData = useMemo(() => {
@@ -425,7 +433,6 @@ export default function PublicKnockoutBracket() {
     
     const roundsMap = {};
     matches.forEach((m) => {
-      // ✅ ถ้าเจอ round ที่เป็น Group ให้ข้ามไปเลย (จริงๆ filter ตั้งแต่ fetch แล้วแต่กันเหนียว)
       if (m.round?.toLowerCase().includes("group")) return;
 
       const rCode = m.round || "Unknown";
@@ -467,7 +474,9 @@ export default function PublicKnockoutBracket() {
         });
     });
 
-    const is24Teams = CATEGORIES_24_TEAMS.includes(handLevel);
+    // ✅ 5. เช็คว่าเป็นการแข่งแบบ 24 ทีม หรือไม่ (จาก Config ของ Tournament)
+    const is24Teams = selectedTournament?.settings?.qualificationType === "TOP2_PLUS_4BEST_3RD";
+
     let upper = [];
     let lower = [];
 
@@ -492,10 +501,20 @@ export default function PublicKnockoutBracket() {
     lower.sort((a, b) => compareStatsOnly(a, b));
 
     return { upper, lower };
-  }, [standings, handLevel]);
+  }, [standings, handLevel, selectedTournament]);
+
+  // Handle Loading Empty State
+  if (levelOptions.length === 0) {
+      return (
+        <div className="min-h-screen bg-slate-50 p-6 flex flex-col items-center pt-20">
+            <div className="text-4xl mb-4">📭</div>
+            <h3 className="text-slate-500">ยังไม่มีข้อมูลประเภทการแข่งขันในรายการนี้</h3>
+        </div>
+      );
+  }
 
   return (
-    <div className="min-h-screen bg-slate-50 p-3 md:p-6">
+    <div className="min-h-screen bg-slate-50 p-3 md:p-6 pb-20">
       <div className="max-w-7xl mx-auto">
         
         {/* Header Compact Version */}
@@ -504,8 +523,8 @@ export default function PublicKnockoutBracket() {
             สายการแข่งขัน (Knockout)
           </h1>
 
-          <div className="flex gap-2 w-full md:w-auto">
-             <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm shrink-0">
+          <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+             <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm shrink-0 self-start sm:self-auto">
                 <button 
                   onClick={() => setViewMode("list")}
                   className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${viewMode === 'list' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
@@ -526,15 +545,16 @@ export default function PublicKnockoutBracket() {
                 </button>
              </div>
 
+             {/* ✅ 6. Dynamic Dropdown */}
              <div className="relative flex-grow md:flex-grow-0">
                 <select
                   className="w-full md:w-48 appearance-none rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-100"
                   value={handLevel}
                   onChange={(e) => setHandLevel(e.target.value)}
                 >
-                  {HAND_LEVEL_OPTIONS.map((opt) => (
+                  {levelOptions.map((opt) => (
                     <option key={opt.value} value={opt.value}>
-                      รุ่น {opt.labelShort || opt.label}
+                       {opt.label}
                     </option>
                   ))}
                 </select>
@@ -546,13 +566,17 @@ export default function PublicKnockoutBracket() {
         </div>
 
         {loading && matches.length === 0 && (
-           <div className="text-center py-10 text-slate-400 text-sm">กำลังโหลดข้อมูล...</div>
+           <div className="text-center py-10 text-slate-400 text-sm">
+             <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-indigo-500 border-t-transparent mb-2"></div>
+             <div>กำลังโหลดข้อมูล...</div>
+           </div>
         )}
 
         {!loading && matches.length === 0 && viewMode !== "seeding" && (
           <div className="rounded-xl bg-white border border-dashed border-slate-300 p-8 text-center">
             <div className="text-3xl mb-2">🏆</div>
-            <h3 className="text-slate-900 font-semibold text-sm">ยังไม่มีข้อมูลสายแข่ง</h3>
+            <h3 className="text-slate-900 font-semibold text-sm">ยังไม่มีข้อมูลสายแข่งสำหรับรุ่นนี้</h3>
+            <p className="text-xs text-slate-400 mt-1">ต้องรอให้ Admin ทำการ Generate สายแข่งก่อน</p>
           </div>
         )}
 

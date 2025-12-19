@@ -1,10 +1,9 @@
 // src/pages/admin/KnockoutScoringAdminPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useTournament } from "@/contexts/TournamentContext"; // 1. Import Context
 
-/**
- * มือที่ใช้ในระบบ (ตามที่หมูเด้งให้มา)
- */
-const HAND_LEVEL_OPTIONS = [
+// Fallback Values
+const DEFAULT_HAND_OPTIONS = [
   { label: "Baby", value: "Baby", labelShort: "Baby" },
   { label: "BG-", value: "BG-", labelShort: "BG-" },
   { label: "BG(Mix)", value: "BG(Mix)", labelShort: "Mix" },
@@ -38,10 +37,6 @@ function formatTimeFromISO(iso) {
   });
 }
 
-/**
- * ปรับค่า bracketSide จาก backend ให้เป็น TOP/BOTTOM เสมอ
- * backend อาจเก็บ "TOP" / "BOTTOM" หรือ "สายบน" / "สายล่าง"
- */
 function normalizeBracketSide(value) {
   if (!value) return null;
   const v = String(value).toUpperCase();
@@ -50,17 +45,11 @@ function normalizeBracketSide(value) {
   return value;
 }
 
-/**
- * แปลง match จาก backend → object ที่ UI ใช้
- * อิงจาก match.model.js (field: matchId, handLevel, roundType, round, sets, status, team1, team2, court, scheduledAt, bracketSide, matchNo)
- */
 function normalizeMatch(raw) {
   if (!raw) return null;
 
-  // team1 / team2: ต้องให้ backend populate แล้วได้ { _id, teamName } มา
   const team1Raw = raw.team1 || {};
   const team2Raw = raw.team2 || {};
-
   const sets = Array.isArray(raw.sets) ? raw.sets : [];
 
   return {
@@ -89,13 +78,8 @@ function normalizeMatch(raw) {
   };
 }
 
-/**
- * สรุปผลแมตช์จาก sets:
- * - นับเฉพาะเซ็ตที่ t1,t2 ไม่ใช่ 0-0 (เพราะ backend default = 0)
- */
 function getMatchSummary(match) {
   const games = match.games || [];
-
   let t1Sets = 0;
   let t2Sets = 0;
   let t1Points = 0;
@@ -105,13 +89,10 @@ function getMatchSummary(match) {
     if (g == null) return;
     const a = Number(g.t1 ?? 0);
     const b = Number(g.t2 ?? 0);
-
-    // 0-0 แปลว่ายังไม่กรอก
     if (a === 0 && b === 0) return;
 
     t1Points += a;
     t2Points += b;
-
     if (a > b) t1Sets += 1;
     else if (b > a) t2Sets += 1;
   });
@@ -137,15 +118,12 @@ function getWinnerName(match) {
     : match.team2.name;
 }
 
-/**
- * Card แสดงแต่ละแมตช์ใน list
- */
+// --- Components ---
+
 function MatchCard({ match, onClick }) {
   const setLabel = useMemo(() => getSetScoreLabel(match), [match]);
-  const winnerName = useMemo(() => getWinnerName(match), [match]);
   const { t1Sets, t2Sets, winnerTeamId } = getMatchSummary(match);
 
-  // ตรวจสอบสถานะจริงจากคะแนน
   const hasScore = t1Sets > 0 || t2Sets > 0 || winnerTeamId;
   const isFinished = match.status === "finished" && hasScore;
   const isScheduled = match.status === "scheduled";
@@ -161,13 +139,12 @@ function MatchCard({ match, onClick }) {
     statusLabel = "กำลังแข่ง";
     statusColor = "bg-amber-50 text-amber-700 border-amber-100";
   } else if (isScheduled) {
-    // ถ้า scheduled แต่มีคะแนนแล้ว (อาจจะลืมจบแมตช์)
     if (hasScore) {
-       statusLabel = "มีคะแนน (รอจบ)";
-       statusColor = "bg-blue-50 text-blue-700 border-blue-100";
+      statusLabel = "มีคะแนน (รอจบ)";
+      statusColor = "bg-blue-50 text-blue-700 border-blue-100";
     } else {
-       statusLabel = "ยังไม่แข่ง"; // เปลี่ยนคำให้สื่อความหมายชัดเจนขึ้น
-       statusColor = "bg-slate-100 text-slate-600 border-slate-200";
+      statusLabel = "ยังไม่แข่ง";
+      statusColor = "bg-slate-100 text-slate-600 border-slate-200";
     }
   }
 
@@ -208,23 +185,36 @@ function MatchCard({ match, onClick }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex-1 flex flex-col gap-1 text-sm">
           <div className="flex items-center gap-2">
-            <span className={`font-semibold ${match.team1.id === winnerTeamId ? "text-emerald-700" : "text-slate-900"}`}>
+            <span
+              className={`font-semibold ${
+                match.team1.id === winnerTeamId
+                  ? "text-emerald-700"
+                  : "text-slate-900"
+              }`}
+            >
               {match.team1.name}
             </span>
-            {match.team1.id === winnerTeamId && <span className="text-emerald-600">🏆</span>}
+            {match.team1.id === winnerTeamId && (
+              <span className="text-emerald-600">🏆</span>
+            )}
           </div>
           <div className="flex items-center gap-2">
-            <span className={`font-semibold ${match.team2.id === winnerTeamId ? "text-emerald-700" : "text-slate-900"}`}>
+            <span
+              className={`font-semibold ${
+                match.team2.id === winnerTeamId
+                  ? "text-emerald-700"
+                  : "text-slate-900"
+              }`}
+            >
               {match.team2.name}
             </span>
-            {match.team2.id === winnerTeamId && <span className="text-emerald-600">🏆</span>}
+            {match.team2.id === winnerTeamId && (
+              <span className="text-emerald-600">🏆</span>
+            )}
           </div>
         </div>
         <div className="flex flex-col items-end min-w-[90px] text-xs text-slate-500">
-          <span className="font-semibold text-slate-900 mb-1">
-            {setLabel}
-          </span>
-          {/* ซ่อนชื่อผู้ชนะตรงนี้ เพราะใส่ถ้วยรางวัลหลังชื่อทีมแล้ว */}
+          <span className="font-semibold text-slate-900 mb-1">{setLabel}</span>
         </div>
       </div>
 
@@ -242,9 +232,6 @@ function MatchCard({ match, onClick }) {
   );
 }
 
-/**
- * Bottom sheet กรอกคะแนนเป็นเซ็ต (ใช้ sets ของ backend)
- */
 function ScoreSheet({ open, match, onClose, onSave }) {
   const [localGames, setLocalGames] = useState([
     { t1: "", t2: "" },
@@ -258,7 +245,6 @@ function ScoreSheet({ open, match, onClose, onSave }) {
       const merged = [0, 1, 2].map((i) => {
         const g = games[i];
         if (!g) return { t1: "", t2: "" };
-        // 0-0 ถือว่ายังไม่กรอก → แสดงเป็นช่องว่าง
         const a = Number(g.t1 ?? 0);
         const b = Number(g.t2 ?? 0);
         return {
@@ -381,14 +367,25 @@ function ScoreSheet({ open, match, onClose, onSave }) {
   );
 }
 
-/**
- * หน้า Admin กรอกคะแนน Knockout
- * ใช้ endpoint:
- *   GET /api/matches?roundType=knockout&handLevel=...&round=...
- *   PUT /api/matches/:id/score
- */
+// --- Main Page ---
+
 export default function KnockoutScoringAdminPage() {
-  const [handLevel, setHandLevel] = useState(HAND_LEVEL_OPTIONS[0].value);
+  const { selectedTournament } = useTournament(); // 2. ดึง Config
+
+  // 3. คำนวณ Hand Options
+  const handOptions = useMemo(() => {
+    const cats = selectedTournament?.settings?.categories;
+    if (cats && cats.length > 0) {
+      return cats.map((c) => ({
+        label: c,
+        value: c,
+        labelShort: c,
+      }));
+    }
+    return DEFAULT_HAND_OPTIONS;
+  }, [selectedTournament]);
+
+  const [handLevel, setHandLevel] = useState(handOptions[0]?.value || "");
   const [roundCode, setRoundCode] = useState("QF");
   const [bracketSideFilter, setBracketSideFilter] = useState("ALL");
   const [searchText, setSearchText] = useState("");
@@ -400,7 +397,16 @@ export default function KnockoutScoringAdminPage() {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [editingMatch, setEditingMatch] = useState(null);
 
+  // 4. Update handLevel
+  useEffect(() => {
+    if (handOptions.length > 0 && !handOptions.find((h) => h.value === handLevel)) {
+      setHandLevel(handOptions[0].value);
+    }
+  }, [handOptions, handLevel]);
+
   const loadMatches = async () => {
+    if (!handLevel) return;
+
     setLoading(true);
     setError("");
 
@@ -470,7 +476,6 @@ export default function KnockoutScoringAdminPage() {
   };
 
   const handleSaveScore = async (matchId, sets) => {
-    // optimistic update
     setMatches((prev) =>
       prev.map((m) =>
         m.id === matchId ? { ...m, games: sets, status: "finished" } : m
@@ -490,7 +495,6 @@ export default function KnockoutScoringAdminPage() {
       });
     } catch (err) {
       console.error("save score error", err);
-      // ถ้า error → reload จาก server อีกรอบ
       loadMatches();
     } finally {
       handleCloseSheet();
@@ -498,8 +502,7 @@ export default function KnockoutScoringAdminPage() {
   };
 
   const currentHandLabel =
-    HAND_LEVEL_OPTIONS.find((h) => h.value === handLevel)?.labelShort ||
-    handLevel;
+    handOptions.find((h) => h.value === handLevel)?.labelShort || handLevel;
   const currentRoundLabel =
     ROUND_OPTIONS.find((r) => r.value === roundCode)?.label || roundCode;
 
@@ -519,9 +522,9 @@ export default function KnockoutScoringAdminPage() {
 
       {/* Filter Card */}
       <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3 space-y-3">
-        {/* มือ */}
+        {/* Dynamic Hand Options */}
         <div className="flex flex-wrap gap-2">
-          {HAND_LEVEL_OPTIONS.map((h) => {
+          {handOptions.map((h) => {
             const active = h.value === handLevel;
             return (
               <button
@@ -599,7 +602,9 @@ export default function KnockoutScoringAdminPage() {
         {/* Summary */}
         <div className="text-[11px] text-slate-500">
           มือ{" "}
-          <span className="font-semibold text-slate-900">{currentHandLabel}</span>{" "}
+          <span className="font-semibold text-slate-900">
+            {currentHandLabel}
+          </span>{" "}
           · รอบ{" "}
           <span className="font-semibold text-slate-900">
             {currentRoundLabel}

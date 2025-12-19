@@ -1,19 +1,29 @@
 // src/layouts/PublicLayout.jsx
-// (เวอร์ชันสำหรับ /public/... ไม่ใช้ slug แล้ว)
-
-import React from "react";
-import { NavLink, Outlet, Link } from "react-router-dom";
+import React, { useEffect } from "react";
+import { NavLink, Outlet, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import { useTournament } from "../contexts/TournamentContext"; // 1. Import Context
 
 export default function PublicLayout() {
   const { user } = useAuth();
+  const { selectedTournament, clearTournament } = useTournament(); // 2. ดึงข้อมูลทัวร์นาเมนต์
+  const navigate = useNavigate();
+
+  // 3. ถ้าไม่มีทัวร์นาเมนต์ที่เลือก ให้ดีดกลับไปหน้าเลือก
+  useEffect(() => {
+    if (!selectedTournament) {
+      navigate("/");
+    }
+  }, [selectedTournament, navigate]);
+
+  if (!selectedTournament) return null; // ป้องกัน render ก่อน redirect
 
   const TabLink = ({ to, children }) => (
     <NavLink
       to={to}
       end
       className={({ isActive }) =>
-        `flex-shrink-0 whitespace-nowrap px-4 py-3 text-center text-sm font-medium border-b-2
+        `flex-shrink-0 whitespace-nowrap px-4 py-3 text-center text-sm font-medium border-b-2 transition-colors
         ${
           isActive
             ? "border-indigo-500 text-indigo-600"
@@ -26,46 +36,57 @@ export default function PublicLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <header className="sticky top-0 z-10 bg-white shadow-sm">
+      <header className="sticky top-0 z-20 bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 h-16 flex justify-between items-center">
-          <h1 className="text-lg font-bold text-indigo-700 truncate">
-            Moodeng Cup 2025
-          </h1>
+          <div className="flex flex-col overflow-hidden">
+             {/* 4. แสดงชื่อทัวร์นาเมนต์จาก Context */}
+             <h1 className="text-lg font-bold text-indigo-700 truncate leading-tight">
+               {selectedTournament.name}
+             </h1>
+             <span className="text-[10px] text-gray-400 truncate">
+               {selectedTournament.location || "ไม่ระบุสถานที่"}
+             </span>
+          </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {/* 5. ปุ่มเปลี่ยนรายการ (สำหรับ User ทั่วไป) */}
+            <button
+              onClick={() => {
+                clearTournament();
+                navigate("/");
+              }}
+              className="text-xs text-slate-500 border border-slate-200 px-3 py-1.5 rounded-full hover:bg-slate-50 transition"
+            >
+              🔁 เปลี่ยนรายการ
+            </button>
+
             {user && user.role === "admin" && (
-              <>
-                <span className="hidden sm:inline text-xs text-gray-600 bg-indigo-50 px-2 py-1 rounded-full">
-                  Admin: {user.displayName}
-                </span>
-                <Link
-                  to="/admin"
-                  className="text-xs text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full hover:bg-indigo-100"
-                >
-                  กลับหน้า Admin
-                </Link>
-              </>
+              <Link
+                to="/admin"
+                className="hidden sm:inline-block text-xs text-white bg-indigo-600 px-3 py-1.5 rounded-full hover:bg-indigo-700 shadow-sm"
+              >
+                Admin Panel
+              </Link>
             )}
           </div>
         </div>
       </header>
 
       {/* Tabs */}
-      <nav className="sticky top-16 z-10 bg-white shadow-sm">
-        <div className="flex overflow-x-auto no-scrollbar">
-          <div className="flex flex-nowrap mx-auto md:justify-center">
+      <nav className="sticky top-16 z-10 bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-4xl mx-auto">
+          <div className="flex overflow-x-auto no-scrollbar md:justify-center">
             <TabLink to="running">
-              <span className="relative">
+              <span className="relative flex items-center gap-1.5">
                 Court Running
-                <span className="absolute top-0 right-[-10px] flex h-2 w-2">
+                <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                 </span>
               </span>
             </TabLink>
-
             <TabLink to="schedule">ตารางแข่ง</TabLink>
             <TabLink to="standings">ตารางคะแนน</TabLink>
             <TabLink to="bracket">สายแข่ง (KO)</TabLink>
@@ -74,7 +95,7 @@ export default function PublicLayout() {
       </nav>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto p-2 md:p-4">
+      <main className="max-w-4xl mx-auto p-3 md:p-6 pb-20">
         <Outlet />
       </main>
     </div>

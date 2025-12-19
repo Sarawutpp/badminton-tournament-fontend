@@ -1,16 +1,13 @@
 // src/lib/api.js
 
-// 1) ถ้าหน้าเว็บรันบน localhost ให้ "บังคับใช้" backend local ทันที
 const DEV_FORCE =
   window.location.hostname === "localhost" ||
   window.location.hostname === "127.0.0.1"
     ? "http://localhost:5000/api"
     : null;
 
-// 2) อ่านจาก env ถ้ามี; ถ้าไม่มีให้ใช้ origin ปัจจุบัน
 const RAW_ENV = import.meta.env.VITE_API_URL || `${window.location.origin}`;
 
-// 3) เลือก BASE: localhost (ถ้า dev) > env > origin และ normalize ให้ลงท้าย /api เสมอ
 function normalizeApiBase(s) {
   const b = String(s).trim().replace(/\/$/, "");
   return b.endsWith("/api") ? b : `${b}/api`;
@@ -27,20 +24,59 @@ async function handle(res) {
     } catch {}
     throw new Error(msg || `${res.status} ${res.statusText}`);
   }
-
   const ct = res.headers.get("content-type") || "";
   return ct.includes("application/json") ? res.json() : res.text();
 }
 
+// [Phase 3] Helper: ดึง Active Tournament ID
+function getActiveTournamentId() {
+  try {
+    return localStorage.getItem("selectedTournamentId");
+  } catch (e) {
+    return null;
+  }
+}
+
 async function request(path, opts = {}) {
-  const url = `${API_BASE}${path}`;
-  const res = await fetch(url, {
+  // 1. สร้าง URL Object เพื่อจัดการ Query Params ง่ายๆ
+  // หมายเหตุ: path อาจมี query param ติดมาแล้ว ต้องระวัง
+  const urlObj = new URL(`${API_BASE}${path}`);
+  
+  // 2. [Auto-Inject] ใส่ tournamentId ลงใน Query Param เสมอ (สำหรับ GET)
+  const activeTid = getActiveTournamentId();
+  if (activeTid) {
+    urlObj.searchParams.set("tournamentId", activeTid);
+  }
+
+  // 3. [Auto-Inject] ใส่ tournamentId ลงใน Body (สำหรับ POST/PUT)
+  let options = { ...opts };
+  if (activeTid && options.body && typeof options.body === 'string') {
+     try {
+        // เช็คว่าเป็น JSON หรือไม่
+        const headers = options.headers || {};
+        const isJson = headers["Content-Type"] === "application/json" || 
+                       !headers["Content-Type"]; // default fetch wrapper เราเป็น json
+        
+        if (isJson && options.method && ["POST", "PUT", "PATCH"].includes(options.method.toUpperCase())) {
+            const bodyObj = JSON.parse(options.body);
+            // ถ้าใน body ยังไม่มี tournamentId ให้ยัดเข้าไป
+            if (!bodyObj.tournamentId) {
+                bodyObj.tournamentId = activeTid;
+                options.body = JSON.stringify(bodyObj);
+            }
+        }
+     } catch (e) {
+        // ถ้า parse error ก็ปล่อยผ่าน (อาจไม่ใช่ JSON)
+     }
+  }
+
+  const res = await fetch(urlObj.toString(), {
     headers: {
       "Content-Type": "application/json",
-      ...(opts.headers || {}),
+      ...(options.headers || {}),
     },
-    credentials: "include", // ✅ สำคัญสำหรับ cookie-based auth
-    ...opts,
+    credentials: "include",
+    ...options,
   });
   return handle(res);
 }
@@ -61,14 +97,31 @@ export const API = {
 
   getMe: () => request("/auth/me"),
 
+  // ===== Tournaments (New) =====
+  listTournaments: () => request("/tournaments"),
+  getTournament: (id) => request(`/tournaments/${id}`),
+
+  createTournament: (data) => request("/tournaments", { 
+    method: "POST", 
+    body: JSON.stringify(data) 
+  }),
+
   // ===== Teams =====
   listTeams: () => request("/teams"),
   listTeamsByHand: (hand) =>
     request(`/teams?handLevel=${encodeURIComponent(hand)}`),
+  
   createTeam: (data) =>
     request("/teams", { method: "POST", body: JSON.stringify(data) }),
   
-  // อัปเดตอันดับ (Manual Rank)
+  // [New] Update Team
+  updateTeam: (id, data) =>
+    request(`/teams/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+
+  // [New] Delete Team
+  deleteTeam: (id) =>
+    request(`/teams/${id}`, { method: "DELETE" }),
+  
   updateTeamRanks: (updates) =>
     request("/teams/update-ranks", {
       method: "PUT",
@@ -77,8 +130,24 @@ export const API = {
 
   // ===== Players =====
   listPlayers: () => request("/players"),
+  
   createPlayer: (data) =>
     request("/players", { method: "POST", body: JSON.stringify(data) }),
+
+  // [New] Update Player
+  updatePlayer: (id, data) =>
+    request(`/players/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+
+  // [New] Delete Player
+  deletePlayer: (id) =>
+    request(`/players/${id}`, { method: "DELETE" }),
+
+  importPlayers: (playersData) => 
+    request("/players/import", {
+      method: "POST",
+      body: JSON.stringify({ players: playersData }), // backend จะ auto-inject tournamentId ให้ถ้าใช้ request wrapper เดิม
+    }),
+  createMatch: (data) => request("/matches", { method: "POST", body: JSON.stringify(data) }),
 
   // ===== Matches / Schedule =====
   listSchedule: ({
@@ -102,10 +171,10 @@ export const API = {
     if (sort) qs.set("sort", sort);
     qs.set("page", page);
     qs.set("pageSize", 2000);
+    // request() จะเติม tournamentId ให้เอง
     return request(`/matches?${qs.toString()}`);
   },
 
-  // ใช้สำหรับหน้า AdminMatchScoring
   listMatchesForScoring: async ({
     page = 1,
     pageSize = 24,
@@ -119,8 +188,6 @@ export const API = {
     if (handLevel) qs.set("handLevel", handLevel);
     if (group) qs.set("group", group);
     if (roundType) qs.set("roundType", roundType);
-
-    // ✅✅✅ แก้ไข: เพิ่ม pageSize เยอะๆ เพื่อดึงข้อมูลมาให้ครบ ✅✅✅
     qs.set("pageSize", 10000);
 
     const base = await request(
@@ -146,10 +213,8 @@ export const API = {
           (m.matchId && String(m.matchId).toLowerCase()) ||
           (m.matchNo && String(m.matchNo).toLowerCase()) ||
           "";
-        const t1 =
-          (teamName(m.team1) || m.team1Name || "").toLowerCase();
-        const t2 =
-          (teamName(m.team2) || m.team2Name || "").toLowerCase();
+        const t1 = (teamName(m.team1) || m.team1Name || "").toLowerCase();
+        const t2 = (teamName(m.team2) || m.team2Name || "").toLowerCase();
         return (
           id.includes(keyword) || t1.includes(keyword) || t2.includes(keyword)
         );
@@ -182,14 +247,13 @@ export const API = {
       body: JSON.stringify(data),
     }),
 
-  // ✅✅✅ เพิ่มฟังก์ชันสำหรับ Mock คะแนน ✅✅✅
   mockScores: ({ handLevel }) =>
     request("/matches/mock-scores", {
       method: "POST",
       body: JSON.stringify({ handLevel }),
     }),
 
-  // ===== Tournament / Groups / Knockout =====
+  // ===== Tournament Logic =====
   generateGroups: (body) =>
     request("/tournaments/generate-groups", {
       method: "POST",
@@ -208,14 +272,13 @@ export const API = {
       body: JSON.stringify(body),
     }),
     
-  // ฟังก์ชันสร้าง Knockout อัตโนมัติ
   generateKnockoutAuto: (body) =>
     request("/matches/generate-knockout-auto", {
       method: "POST",
       body: JSON.stringify(body),
     }),
 
-  // ===== Standings =====11
+  // ===== Standings =====
   getStandings: (hand) =>
     request(
       `/standings${hand ? `?handLevel=${encodeURIComponent(hand)}` : ""}`
@@ -230,43 +293,37 @@ export const API = {
         tournamentId,
       }),
     }),
+    
   recalculateStandings: ({ handLevel, tournamentId }) =>
     request("/standings/recalculate", {
       method: "POST",
       body: JSON.stringify({ handLevel, tournamentId }),
     }),
 
-  // Utilities: group standings จาก teams
+  // Utilities
   async listGroups() {
-    const teams = await request("/teams");
+    const teams = await request("/teams"); // Auto-inject tournamentId
     const byLevel = {};
-
     for (const t of teams) {
       const level = t.handLevel || "UNKNOWN";
       const g = t.group ?? null;
-
       if (!byLevel[level]) byLevel[level] = { level, groups: {} };
       if (g === null) continue;
-
       if (!byLevel[level].groups[g]) {
         byLevel[level].groups[g] = { groupName: g, teams: [] };
       }
       byLevel[level].groups[g].teams.push(t);
     }
-
     const result = Object.values(byLevel)
       .map((lvl) => {
         Object.values(lvl.groups).forEach((g) => {
           g.teams.sort(
             (a, b) =>
               (b.points ?? 0) - (a.points ?? 0) ||
-              (b.scoreDiff ??
-                (b.scoreFor ?? 0) - (b.scoreAgainst ?? 0)) -
-                (a.scoreDiff ??
-                  (a.scoreFor ?? 0) - (a.scoreAgainst ?? 0))
+              (b.scoreDiff ?? (b.scoreFor ?? 0) - (b.scoreAgainst ?? 0)) -
+              (a.scoreDiff ?? (a.scoreFor ?? 0) - (a.scoreAgainst ?? 0))
           );
         });
-
         return {
           level: lvl.level,
           groups: Object.values(lvl.groups).sort((a, b) =>
@@ -275,65 +332,49 @@ export const API = {
         };
       })
       .sort((a, b) => a.level.localeCompare(b.level));
-
     return result;
   },
 
   async listGroupMatches() {
-    const matches = await request("/matches");
+    const matches = await request("/matches"); // Auto-inject tournamentId
     const byLevel = {};
-
     for (const m of matches) {
       if (!/group/i.test(m.round || "group")) continue;
-
       const level =
         (m.level && m.level.toUpperCase()) ||
-        (m.team1?.handLevel?.toUpperCase &&
-          m.team1.handLevel.toUpperCase()) ||
-        (m.team2?.handLevel?.toUpperCase &&
-          m.team2.handLevel.toUpperCase()) ||
+        (m.team1?.handLevel?.toUpperCase && m.team1.handLevel.toUpperCase()) ||
+        (m.team2?.handLevel?.toUpperCase && m.team2.handLevel.toUpperCase()) ||
         "UNKNOWN";
-
       if (!byLevel[level]) byLevel[level] = { level, matches: [] };
       byLevel[level].matches.push(m);
     }
-
     return Object.values(byLevel);
   },
 
   async listKnockout() {
-    const matches = await request("/matches");
+    const matches = await request("/matches"); // Auto-inject tournamentId
     const byRound = {};
-
     for (const m of matches) {
       if (m.roundType !== "knockout") continue;
       const name = m.roundName || m.round || "Unknown";
-
       if (!byRound[name]) byRound[name] = { name, matches: [] };
       byRound[name].matches.push(m);
     }
-
     const order = ["Round of 16", "Quarter-final", "Semifinal", "Final"];
     return Object.values(byRound).sort(
       (a, b) =>
-        (order.indexOf(a.name) + 1 || 99) -
-        (order.indexOf(b.name) + 1 || 99)
+        (order.indexOf(a.name) + 1 || 99) - (order.indexOf(b.name) + 1 || 99)
     );
   },
 };
 
-// ---------- Helpers ----------
 export function teamName(t) {
   if (!t) return "-";
   if (typeof t === "string") return t;
   if (t.teamName) return t.teamName;
   if (t.name) return t.name;
-
-  const n1 =
-    t.players?.[0]?.nickname || t.players?.[0]?.fullName || "";
-  const n2 =
-    t.players?.[1]?.nickname || t.players?.[1]?.fullName || "";
-
+  const n1 = t.players?.[0]?.nickname || t.players?.[0]?.fullName || "";
+  const n2 = t.players?.[1]?.nickname || t.players?.[1]?.fullName || "";
   const duo = [n1, n2].filter(Boolean).join("/");
   return duo || "-";
 }
