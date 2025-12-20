@@ -6,9 +6,9 @@ import { API, teamName } from "@/lib/api.js";
 
 // (คัดลอก statusStyle มาจาก Schedule.jsx)
 const statusStyle = {
-  finished: "bg-emerald-100 text-emerald-700",
-  "in-progress": "bg-amber-100 text-amber-800",
-  scheduled: "bg-sky-100 text-sky-700", 
+  finished: "bg-emerald-100 text-emerald-700",
+  "in-progress": "bg-amber-100 text-amber-800",
+  scheduled: "bg-sky-100 text-sky-700",
 };
 
 // Component "การ์ด" สำหรับคอร์ท
@@ -19,7 +19,7 @@ function CourtCard({ courtNumber, match }) {
       <div className="p-4 border-b">
         <h3 className="font-bold text-lg">คอร์ท {courtNumber}</h3>
       </div>
-      
+
       {/* 2. เนื้อหา (ว่า "ว่าง" หรือ "กำลังแข่ง") */}
       <div className="p-4 flex-grow">
         {!match ? (
@@ -54,10 +54,16 @@ export default function PublicCourtRunning() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [inProgress, setInProgress] = useState([]); // แมทช์ที่ "in-progress"
-  
-  // (สมมติว่ามี 14 คอร์ท)
-  const NUM_COURTS = 14; 
-  const courts = Array.from({ length: NUM_COURTS }, (_, i) => i + 1);
+
+  // -----------------------------------------------------------------------
+  // [EDITED] แก้ไขเลขสนามแบบ Hardcode เพื่อให้ User เห็นเหมือน Admin
+  // -----------------------------------------------------------------------
+  const courts = [5, 6, 7, 8, 3, 2];
+
+  // ของเดิม (เก็บไว้ดูเผื่ออยากแก้กลับ)
+  // const NUM_COURTS = 14; 
+  // const courts = Array.from({ length: NUM_COURTS }, (_, i) => i + 1);
+  // -----------------------------------------------------------------------
 
   const loadAll = async () => {
     setLoading(true);
@@ -76,7 +82,7 @@ export default function PublicCourtRunning() {
   useEffect(() => {
     loadAll();
     // (ตั้ง Auto-refresh ทุก 30 วินาที)
-    const interval = setInterval(loadAll, 30000); 
+    const interval = setInterval(loadAll, 30000);
     return () => clearInterval(interval);
   }, []);
 
@@ -115,7 +121,7 @@ export default function PublicCourtRunning() {
       {loading && inProgress.length === 0 && (
         <div className="text-center text-gray-500 p-8">กำลังโหลด...</div>
       )}
-      
+
       {!loading && inProgress.length === 0 && (
         <div className="text-center text-gray-500 p-8">ไม่มีคอร์ทที่กำลังแข่งขัน</div>
       )}
