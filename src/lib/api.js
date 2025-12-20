@@ -1,20 +1,5 @@
 // src/lib/api.js
-
-const DEV_FORCE =
-  window.location.hostname === "localhost" ||
-  window.location.hostname === "127.0.0.1"
-    ? "http://localhost:5000/api"
-    : null;
-
-const RAW_ENV = import.meta.env.VITE_API_URL || `${window.location.origin}`;
-
-function normalizeApiBase(s) {
-  const b = String(s).trim().replace(/\/$/, "");
-  return b.endsWith("/api") ? b : `${b}/api`;
-}
-
-export const API_BASE = normalizeApiBase(DEV_FORCE || RAW_ENV);
-
+export const API_BASE = `${window.location.origin}/api`;
 // ---------- helpers ----------
 async function handle(res) {
   if (!res.ok) {
