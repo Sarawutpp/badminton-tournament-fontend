@@ -213,8 +213,15 @@ export default function CourtRunningPage() {
     } catch (e) { alert("Error: " + e.message); loadAll(); }
   };
 
-  // [Phase 4] Generate Courts Array Dynamic
-  const courts = Array.from({ length: NUM_COURTS }, (_, i) => i + 1);
+  // -----------------------------------------------------------------------
+  // [EDITED] แก้ไขเลขสนามแบบ Hardcode เพื่อใช้งานทันที
+  // -----------------------------------------------------------------------
+  const courts = [5, 6, 7, 8, 3, 2];
+  
+  // ถ้าต้องการใช้แบบเดิม (Dynamic) ในอนาคต ให้ comment บรรทัดบน แล้ว uncomment บรรทัดล่างครับ
+  // const courts = Array.from({ length: NUM_COURTS }, (_, i) => i + 1);
+  // -----------------------------------------------------------------------
+
   const busyCourts = inProgress.map(m => String(m.court));
   const freeCourts = courts.filter(c => !busyCourts.includes(String(c)));
 
@@ -226,7 +233,7 @@ export default function CourtRunningPage() {
             <h1 className="text-2xl font-bold text-slate-800">Court Running (Control Room)</h1>
             <p className="text-sm text-slate-500">
                 รายการ: <span className="font-semibold text-indigo-600">{selectedTournament?.name}</span> • 
-                จำนวนคอร์ท: {NUM_COURTS}
+                จำนวนคอร์ท: {courts.length}
             </p>
           </div>
           <button className="px-4 py-2 border border-slate-300 rounded-lg bg-white shadow-sm hover:bg-slate-50 text-slate-700 font-medium transition disabled:opacity-50 flex items-center gap-2" onClick={loadAll} disabled={loading}>
