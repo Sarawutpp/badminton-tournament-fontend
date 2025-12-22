@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import { API, teamName } from "@/lib/api.js";
 import { HAND_LEVEL_OPTIONS } from "@/lib/types.js";
-import { useTournament } from "@/contexts/TournamentContext"; 
+import { useTournament } from "@/contexts/TournamentContext";
 
 const pageSize = 24;
 
@@ -31,24 +31,27 @@ function handShort(level) {
 
 // ----------------- Main Page -----------------
 export default function AdminMatchScoringPage() {
-  const { selectedTournament } = useTournament(); 
-  
+  const { selectedTournament } = useTournament();
+
   const settings = selectedTournament?.settings || {};
-  const CONFIG_MAX_SCORE = settings.maxScore || 21; 
-  const CONFIG_CATEGORIES = settings.categories && settings.categories.length > 0 
-      ? settings.categories 
-      : HAND_LEVEL_OPTIONS.map(h => h.value); 
+  const CONFIG_MAX_SCORE = settings.maxScore || 21;
+  const CONFIG_CATEGORIES = settings.categories && settings.categories.length > 0
+    ? settings.categories
+    : HAND_LEVEL_OPTIONS.map(h => h.value);
 
   const [rows, setRows] = useState([]);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // [NEW] State สำหรับจัดการ Tab (pending = รอแข่ง/กรอกผล, finished = จบแล้ว)
+  const [activeTab, setActiveTab] = useState("pending");
 
   const [filters, setFilters] = useState({
     handLevel: "",
     group: "",
     q: "",
     roundType: "",
-    onlyFinished: false,
+    // onlyFinished: false, // [REMOVED] เอาออก เพราะเราใช้ Tab แทนแล้ว
   });
 
   const [page, setPage] = useState(1);
@@ -65,14 +68,15 @@ export default function AdminMatchScoringPage() {
         group: filters.group || undefined,
         q: filters.q || undefined,
         roundType: filters.roundType || undefined,
-        onlyFinished: filters.onlyFinished || undefined,
+        // เราโหลดข้อมูลมาทั้งหมด (หรือตามฟิลเตอร์อื่น) แล้วมาแยก Tab ที่หน้าบ้าน
+        // หาก API รองรับการ sort status=pending ขึ้นก่อน จะดียิ่งขึ้น
       });
 
       const items = Array.isArray(res?.items)
         ? res.items
         : Array.isArray(res)
-        ? res
-        : [];
+          ? res
+          : [];
       setRows(items);
       setTotal(Number(res?.total ?? items.length));
       setPage(Number(res?.page ?? p));
@@ -91,6 +95,19 @@ export default function AdminMatchScoringPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // [NEW] Logic แยกข้อมูลตาม Tab
+  // กรอง rows ที่โหลดมา เพื่อแสดงให้ตรงกับ Tab ที่เลือก
+  const displayedRows = rows.filter((r) => {
+    const isFinished = hasScore(r); // เช็คว่ามีคะแนนหรือยัง
+    if (activeTab === "pending") {
+      // Tab Pending: แสดงเฉพาะที่ "ยังไม่มีผล" (รวมถึงแมตช์ที่รอแข่ง หรือกำลังแข่ง)
+      return !isFinished;
+    } else {
+      // Tab Finished: แสดงเฉพาะที่ "มีผลแล้ว"
+      return isFinished;
+    }
+  });
+
   const maxPage = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
 
   return (
@@ -101,7 +118,7 @@ export default function AdminMatchScoringPage() {
             กรอกผลการแข่งขัน
           </h1>
           <p className="text-xs md:text-sm text-slate-500">
-             Rules: Max {CONFIG_MAX_SCORE} Points
+            Rules: Max {CONFIG_MAX_SCORE} Points
           </p>
         </div>
       </header>
@@ -169,18 +186,9 @@ export default function AdminMatchScoringPage() {
             />
           </div>
         </div>
-        <div className="flex flex-col md:flex-row items-center justify-between gap-3 text-xs md:text-sm text-slate-600">
-          <label className="inline-flex items-center gap-2 self-start md:self-center">
-            <input
-              type="checkbox"
-              className="rounded border-slate-300"
-              checked={filters.onlyFinished}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, onlyFinished: e.target.checked }))
-              }
-            />
-            เฉพาะแมตช์ "จบแล้ว"
-          </label>
+        <div className="flex flex-col md:flex-row items-center justify-end gap-3 text-xs md:text-sm text-slate-600">
+          {/* [REMOVED] Checkbox 'เฉพาะแมตช์ จบแล้ว' ออกไปแล้ว */}
+          
           <div className="flex gap-2 w-full md:w-auto">
             <button
               className="flex-1 md:flex-none px-3 py-2 md:py-1 border rounded-full text-xs md:text-sm hover:bg-slate-50"
@@ -190,7 +198,6 @@ export default function AdminMatchScoringPage() {
                   group: "",
                   q: "",
                   roundType: "group",
-                  onlyFinished: false,
                 });
                 load(1);
               }}
@@ -212,20 +219,47 @@ export default function AdminMatchScoringPage() {
         <div className="p-3 bg-red-50 text-sm text-red-600 rounded">{err}</div>
       )}
 
+      {/* [NEW] Tabs Selector */}
+      <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-full md:w-fit">
+        <button
+          onClick={() => setActiveTab("pending")}
+          className={`flex-1 md:flex-none px-4 py-2 text-sm font-semibold rounded-md transition-all ${
+            activeTab === "pending"
+              ? "bg-white text-indigo-600 shadow-sm"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          ⏳ รอแข่ง / รอกรอกผล
+        </button>
+        <button
+          onClick={() => setActiveTab("finished")}
+          className={`flex-1 md:flex-none px-4 py-2 text-sm font-semibold rounded-md transition-all ${
+            activeTab === "finished"
+              ? "bg-white text-emerald-600 shadow-sm"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          ✅ จบแล้ว / มีผล
+        </button>
+      </div>
+
       {/* ================= Mobile List View (md:hidden) ================= */}
       <div className="block md:hidden space-y-4">
-        {rows && rows.length > 0 ? (
-          rows.map((m) => (
+        {displayedRows && displayedRows.length > 0 ? (
+          displayedRows.map((m) => (
             <MatchScoreCardMobile
               key={m._id}
               m={m}
               loadData={() => load(page)}
-              configMaxScore={CONFIG_MAX_SCORE} 
+              configMaxScore={CONFIG_MAX_SCORE}
             />
           ))
         ) : (
-          <div className="text-center py-8 text-slate-400 bg-white rounded-xl border border-dashed">
-            ไม่พบข้อมูลแมตช์
+          <div className="text-center py-12 text-slate-400 bg-white rounded-xl border border-dashed">
+            <p className="text-lg">ไม่พบข้อมูลในแท็บนี้</p>
+            <p className="text-xs mt-1 text-slate-300">
+              (ลองเปลี่ยนแท็บ หรือเปลี่ยนหน้าถัดไป)
+            </p>
           </div>
         )}
       </div>
@@ -248,19 +282,19 @@ export default function AdminMatchScoringPage() {
             </tr>
           </thead>
           <tbody>
-            {rows && rows.length > 0 ? (
-              rows.map((m) => (
+            {displayedRows && displayedRows.length > 0 ? (
+              displayedRows.map((m) => (
                 <MatchScoreRowDesktop
                   key={m._id}
                   m={m}
                   loadData={() => load(page)}
-                  configMaxScore={CONFIG_MAX_SCORE} 
+                  configMaxScore={CONFIG_MAX_SCORE}
                 />
               ))
             ) : (
               <tr>
-                <td colSpan={10} className="p-8 text-center text-slate-500">
-                  ยังไม่มีแมตช์ให้กรอกผล
+                <td colSpan={10} className="p-12 text-center text-slate-500">
+                   ไม่พบข้อมูลในแท็บนี้
                 </td>
               </tr>
             )}
@@ -271,7 +305,10 @@ export default function AdminMatchScoringPage() {
       {/* Pagination */}
       <div className="flex items-center justify-between text-xs md:text-sm text-slate-600 pt-2">
         <div>
-          รวม {total} • หน้า {page}/{maxPage}
+          รวม {total} • หน้า {page}/{maxPage} 
+          <span className="hidden md:inline ml-2 text-slate-400 text-xs">
+            (แสดง {displayedRows.length} รายการในแท็บนี้)
+          </span>
         </div>
         <div className="flex gap-2">
           <button
@@ -354,6 +391,20 @@ function useMatchScoring(m, loadData, configMaxScore) {
     setLocalSets(arr);
   }
 
+  // [FIX] Sync localSets when props m changes (e.g. re-fetch data)
+  useEffect(() => {
+    let s = m.sets?.map((set) => ({ t1: set.t1 || 0, t2: set.t2 || 0 })) || [];
+    // Ensure at least 3 sets for UI
+    while (s.length < 3) s.push({ t1: 0, t2: 0 });
+    setLocalSets(s);
+    
+    // Update editing state if status changed externally
+    const hasScore = (m.sets && m.sets.length > 0) || (m.score1 > 0 || m.score2 > 0);
+    if (m.status === "finished" && !hasScore) {
+       setIsEditing(true);
+    }
+  }, [m]);
+
   async function save() {
     setSaving(true);
     setLocalErr("");
@@ -361,28 +412,30 @@ function useMatchScoring(m, loadData, configMaxScore) {
       // Logic Validation
       for (let i = 0; i < maxSets; i++) {
         const s = localSets[i];
-        const t1 = s.t1 || 0;
-        const t2 = s.t2 || 0;
-        // เช็คเสมอ: ถ้า gamesToWin=1 (Mini) ห้ามเสมอ, หรือถ้า allowDraw=false
-        // แต่ใน ScoreUtils backend จัดการ logic นี้ให้แล้ว เบื้องต้น frontend ปล่อยผ่าน
-        // แค่เช็คพื้นฐานว่าถ้ากรอกแล้วค่าเท่ากัน
+        // const t1 = s.t1 || 0;
+        // const t2 = s.t2 || 0;
       }
 
+      // [FIX] Check !isNaN instead of > 0 to allow score 0 (e.g. 21-0)
       const payloadSets = localSets
         .slice(0, maxSets)
-        .filter((s) => (s?.t1 || 0) > 0 || (s?.t2 || 0) > 0);
+        .filter((s) => {
+           // Must have at least one side with a number (0 is allowed)
+           // But actually we usually want to filter out "empty" rows.
+           // If UI forces 0, then 0-0 might be sent.
+           // Let's filter out if BOTH are null/undefined/NaN, otherwise keep 0.
+           const t1 = parseInt(s.t1);
+           const t2 = parseInt(s.t2);
+           return !isNaN(t1) && !isNaN(t2); 
+        });
 
       if (payloadSets.length === 0) {
         throw new Error("กรุณากรอกคะแนนอย่างน้อย 1 เซ็ต");
       }
 
-      // [FIX] ลบ Hardcode gamesToWin, allowDraw ออก
-      // เพื่อให้ Backend ใช้ค่าเดิมของ Match
       await API.updateScore(m._id, {
         sets: payloadSets,
         status: "finished",
-        // gamesToWin: ... (ใช้จาก DB)
-        // allowDraw: ... (ใช้จาก DB)
       });
 
       setIsEditing(false);

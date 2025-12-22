@@ -1,9 +1,21 @@
 /* src/styles.css */
 
+/* 1. นำเข้าฟอนต์ Kanit (แนวสปอร์ต) และ Mali (แนวน่ารัก) */
+@import url('https://fonts.googleapis.com/css2?family=Kanit:ital,wght@0,400;0,600;0,900;1,400;1,900&family=Mali:wght@400;600;700&display=swap');
+
+/* 2. (ตัวเลือกเสริม) ถ้าอยากได้ฟอนต์ไทยแนววินเทจ สำหรับหัวข้อ "ทำเนียบไก่" ให้เพิ่ม Chonburi */
+@import url('https://fonts.googleapis.com/css2?family=Chonburi&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* utility: hide scrollbar when using overflow-x/overflow-y */
-.no-scrollbar::-webkit-scrollbar { display: none; }
-.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+/* ... (โค้ดเดิมของคุณที่ซ่อน scrollbar) ... */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}

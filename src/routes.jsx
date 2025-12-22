@@ -1,4 +1,3 @@
-// src/routes.jsx
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
 // 🧩 Layouts
@@ -30,6 +29,7 @@ import StandingsPage from "./pages/public/Standings.jsx";
 import SchedulePage from "./pages/public/Schedule";
 import PublicCourtRunning from "./pages/public/PublicCourtRunning.jsx";
 import PublicKnockoutBracket from "./pages/public/PublicKnockoutBracket.jsx";
+import HallOfFame from "./pages/public/HallOfFame.jsx"; // ✅ [NEW] Import Hall of Fame
 
 
 const router = createBrowserRouter([
@@ -90,6 +90,7 @@ const router = createBrowserRouter([
           { path: "schedule", element: <SchedulePage /> },
           { path: "standings", element: <StandingsPage /> },
           { path: "bracket", element: <PublicKnockoutBracket /> },
+          { path: "hall-of-fame", element: <HallOfFame /> }, // ✅ [NEW] Route ทำเนียบแชมป์
         ],
       },
     ]

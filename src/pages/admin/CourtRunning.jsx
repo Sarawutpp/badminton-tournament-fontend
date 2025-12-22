@@ -1,10 +1,10 @@
 // src/pages/admin/CourtRunning.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { API, teamName } from "@/lib/api.js";
-import { useTournament } from "@/contexts/TournamentContext"; // [Phase 4] Import
+import { useTournament } from "@/contexts/TournamentContext";
 
 // ----------------------------------------------------------------------------------
-// Helper Components (ส่วนนี้เหมือนเดิม แต่รวมไว้ให้ครบในไฟล์เดียวเพื่อความสะดวก)
+// Helper Components
 // ----------------------------------------------------------------------------------
 
 function formatTime(isoString) {
@@ -21,50 +21,60 @@ function formatTime(isoString) {
   }
 }
 
+// Modal เลือกสนาม
 function CourtSelectionModal({ match, freeCourts, onClose, onSelect }) {
   if (!match) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
-        <div className="bg-indigo-600 p-4 flex justify-between items-center text-white">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all scale-100">
+        
+        {/* Header */}
+        <div className="bg-slate-800 p-4 text-white flex justify-between items-start">
           <div>
-            <h3 className="text-lg font-bold">เลือกสนามแข่ง</h3>
-            <div className="text-indigo-100 text-sm mt-1">
-              {teamName(match.team1)} <span className="opacity-70">vs</span> {teamName(match.team2)}
+            <div className="flex items-center gap-2 mb-1">
+               <span className="bg-indigo-500 text-white text-xs font-bold px-2 py-0.5 rounded">
+                 Match {match.matchNo}
+               </span>
+               <span className="text-slate-300 text-sm">{match.matchId}</span>
             </div>
+            <h3 className="text-lg font-bold leading-tight">
+              {teamName(match.team1)} <span className="text-slate-400 mx-1">vs</span> {teamName(match.team2)}
+            </h3>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-white/20 rounded-full transition">
+          <button onClick={onClose} className="text-slate-400 hover:text-white transition">
             <span className="text-2xl leading-none">&times;</span>
           </button>
         </div>
+
+        {/* Body */}
         <div className="p-6">
+          <h4 className="text-center text-slate-500 mb-4 text-sm font-medium">เลือกสนามที่ว่างเพื่อเริ่มการแข่งขัน</h4>
+          
           {freeCourts.length === 0 ? (
-            <div className="text-center text-gray-500 py-8">ไม่มีคอร์ทว่างในขณะนี้</div>
+            <div className="text-center text-red-500 py-6 bg-red-50 rounded-lg border border-red-100">
+              ❌ ขณะนี้ไม่มีคอร์ทว่าง
+            </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto custom-scrollbar p-1">
               {freeCourts.map((courtNum) => (
                 <button
                   key={courtNum}
                   onClick={() => onSelect(match, courtNum)}
-                  className="flex flex-col items-center justify-center p-4 rounded-lg border-2 border-slate-100 hover:border-indigo-500 hover:bg-indigo-50 transition active:scale-95"
+                  className="group flex flex-col items-center justify-center p-3 rounded-xl border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50 transition active:scale-95"
                 >
-                  <span className="text-sm text-slate-500">คอร์ท</span>
-                  <span className="text-2xl font-bold text-indigo-700">{courtNum}</span>
+                  <span className="text-xs text-slate-400 group-hover:text-indigo-600 font-medium">คอร์ท</span>
+                  <span className="text-3xl font-black text-slate-700 group-hover:text-indigo-700">{courtNum}</span>
                 </button>
               ))}
             </div>
           )}
-        </div>
-        <div className="bg-gray-50 p-3 text-right">
-          <button onClick={onClose} className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg text-sm font-medium">
-            ปิดหน้าต่าง
-          </button>
         </div>
       </div>
     </div>
   );
 }
 
+// การ์ดสนาม (Control Panel)
 function CourtBucket({ courtNumber, match, onFinish, onCancel }) {
   const [processing, setProcessing] = useState(false);
 
@@ -86,33 +96,61 @@ function CourtBucket({ courtNumber, match, onFinish, onCancel }) {
   }
 
   return (
-    <div className={`bg-white rounded-xl shadow border h-full flex flex-col transition-all duration-300 ${!!match ? "border-indigo-200 shadow-md ring-1 ring-indigo-50" : "border-slate-200"}`}>
-      <div className={`px-4 py-3 border-b flex justify-between items-center ${match ? 'bg-indigo-50/50' : 'bg-gray-50'}`}>
-        <h3 className={`font-bold text-lg ${match ? 'text-indigo-700' : 'text-gray-700'}`}>คอร์ท {courtNumber}</h3>
-        {match && <span className="text-xs font-mono text-indigo-400">Live</span>}
+    <div className={`relative bg-white rounded-xl shadow border h-full flex flex-col transition-all duration-300 ${!!match ? "border-indigo-500 ring-2 ring-indigo-100 shadow-lg" : "border-slate-200"}`}>
+      
+      {/* Header เลขคอร์ท */}
+      <div className={`px-4 py-3 border-b flex justify-between items-center rounded-t-xl ${match ? 'bg-indigo-600 text-white' : 'bg-gray-50 text-gray-600'}`}>
+        <div className="flex items-center gap-2">
+           <h3 className="font-bold text-lg">คอร์ท {courtNumber}</h3>
+           {match && <span className="bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full animate-pulse">LIVE</span>}
+        </div>
       </div>
+
       <div className="p-4 flex-grow flex flex-col justify-center">
         {!match ? (
-          <div className="flex items-center justify-center h-full text-gray-300 text-sm italic">-- ว่าง --</div>
+          <div className="flex flex-col items-center justify-center h-full text-gray-300 space-y-2 py-6">
+            <span className="text-4xl opacity-20">🏸</span>
+            <span className="text-sm font-medium">ว่าง (Available)</span>
+          </div>
         ) : (
-          <div className="flex flex-col h-full">
-            <div className="flex-grow">
-              <div className="flex justify-between items-start mb-2">
-                <span className="text-xs font-bold px-2 py-0.5 bg-indigo-100 text-indigo-700 rounded-full">{match.handLevel}</span>
-                <span className="text-xs text-gray-400">{match.matchId}</span>
+          <div className="flex flex-col h-full relative">
+            
+            {/* MATCH NO. BADGE */}
+            <div className="absolute -top-2 right-0">
+               <div className="flex flex-col items-center bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-1 rounded shadow-sm">
+                  <span className="text-[9px] uppercase font-bold leading-none">Match</span>
+                  <span className="text-xl font-black leading-none">{match.matchNo}</span>
+               </div>
+            </div>
+
+            {/* Content */}
+            <div className="flex-grow pt-4">
+              <div className="mb-3">
+                 <span className="text-[10px] font-bold px-2 py-0.5 bg-gray-100 text-gray-600 rounded border border-gray-200">
+                    {match.handLevel} / {match.matchId}
+                 </span>
               </div>
-              <div className="space-y-1 mb-4">
-                <div className="font-semibold text-gray-900 leading-tight">{teamName(match.team1)}</div>
-                <div className="text-xs text-gray-400 font-medium">VS</div>
-                <div className="font-semibold text-gray-900 leading-tight">{teamName(match.team2)}</div>
+              
+              <div className="space-y-2 mb-4">
+                <div className="font-bold text-gray-900 text-lg leading-tight">{teamName(match.team1)}</div>
+                <div className="text-xs text-gray-400 font-bold italic">VS</div>
+                <div className="font-bold text-gray-900 text-lg leading-tight">{teamName(match.team2)}</div>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2 mt-2 pt-3 border-t border-dashed">
-              <button className="px-3 py-2 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 rounded-lg transition-colors disabled:opacity-50" onClick={handleCancel} disabled={processing}>
-                {processing ? "..." : "ยกเลิก / ถอย"}
+
+            {/* Actions */}
+            <div className="grid grid-cols-2 gap-2 mt-auto pt-3 border-t border-dashed border-gray-200">
+              <button 
+                className="px-3 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-100 rounded-lg transition-colors disabled:opacity-50" 
+                onClick={handleCancel} disabled={processing}
+              >
+                {processing ? "..." : "↩ ยกเลิก"}
               </button>
-              <button className="px-3 py-2 text-xs font-medium text-white bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-200 rounded-lg transition-colors disabled:opacity-50" onClick={handleFinish} disabled={processing}>
-                {processing ? "..." : "จบแมทช์ ✅"}
+              <button 
+                className="px-3 py-2 text-xs font-bold text-white bg-emerald-500 hover:bg-emerald-600 shadow-sm shadow-emerald-200 rounded-lg transition-colors disabled:opacity-50" 
+                onClick={handleFinish} disabled={processing}
+              >
+                {processing ? "..." : "จบแมทช์ ✓"}
               </button>
             </div>
           </div>
@@ -122,35 +160,34 @@ function CourtBucket({ courtNumber, match, onFinish, onCancel }) {
   );
 }
 
-function MatchItemCard({ match, onClick }) {
+// รายการในคิว
+function MatchQueueItem({ match, onClick }) {
   return (
-    <div onClick={() => onClick(match)} className="group p-3 border border-slate-200 rounded-lg bg-white shadow-sm hover:shadow-md hover:border-indigo-300 hover:bg-indigo-50/30 cursor-pointer transition-all duration-200 active:scale-[0.98]">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">{formatTime(match.scheduledAt) || "Wait"}</span>
-        <span className="text-[10px] px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full font-semibold uppercase tracking-wider">{match.handLevel}</span>
+    <div 
+        onClick={() => onClick(match)} 
+        className="group relative flex items-stretch bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow-md hover:border-indigo-400 hover:ring-1 hover:ring-indigo-100 cursor-pointer transition-all active:scale-[0.98] overflow-hidden"
+    >
+      <div className="w-14 bg-slate-800 text-white flex flex-col items-center justify-center flex-shrink-0 group-hover:bg-indigo-600 transition-colors">
+        <span className="text-[9px] uppercase font-bold opacity-70">Match</span>
+        <span className="text-xl font-bold leading-none">{match.matchNo}</span>
       </div>
-      <div className="text-sm space-y-0.5">
-        <div className="font-medium text-slate-800 group-hover:text-indigo-900">{teamName(match.team1)}</div>
-        <div className="text-[10px] text-slate-400 flex items-center gap-2"><span>vs</span></div>
-        <div className="font-medium text-slate-800 group-hover:text-indigo-900">{teamName(match.team2)}</div>
+      <div className="flex-grow p-2.5 min-w-0">
+        <div className="flex justify-between items-start mb-1">
+           <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-semibold border border-slate-200">
+             {match.handLevel}
+           </span>
+           <span className="text-[10px] text-slate-400 font-mono">{formatTime(match.scheduledAt)}</span>
+        </div>
+        <div className="text-sm font-medium text-slate-800 leading-tight truncate pr-1">
+           <span className="group-hover:text-indigo-700 transition-colors">{teamName(match.team1)}</span>
+        </div>
+        <div className="text-[10px] text-slate-400 my-0.5">vs</div>
+        <div className="text-sm font-medium text-slate-800 leading-tight truncate pr-1">
+           <span className="group-hover:text-indigo-700 transition-colors">{teamName(match.team2)}</span>
+        </div>
       </div>
-    </div>
-  );
-}
-
-function MatchQueue({ matches, onSelectMatch }) {
-  return (
-    <div className="bg-white rounded-xl shadow border border-slate-200 h-full flex flex-col overflow-hidden">
-      <div className="p-4 border-b bg-white z-10 shadow-sm">
-        <h3 className="font-bold text-lg text-slate-800 flex items-center gap-2">
-          <span>คิวรอแข่ง</span>
-          <span className="bg-slate-100 text-slate-600 text-xs px-2 py-1 rounded-full">{matches.length}</span>
-        </h3>
-        <p className="text-xs text-slate-400 mt-1">คลิกที่การ์ดเพื่อส่งลงสนาม</p>
-      </div>
-      <div className="p-3 space-y-2 overflow-y-auto flex-grow bg-slate-50 scrollbar-thin scrollbar-thumb-slate-200">
-        {matches.length === 0 && <div className="flex flex-col items-center justify-center h-40 text-slate-400 text-sm"><div className="mb-2">😴</div>ไม่มีแมทช์รอในคิว</div>}
-        {matches.map((m) => <MatchItemCard key={m._id} match={m} onClick={onSelectMatch} />)}
+      <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
+         <span className="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow">เลือก</span>
       </div>
     </div>
   );
@@ -167,11 +204,18 @@ export default function CourtRunningPage() {
   const [inProgress, setInProgress] = useState([]); 
   const [selectedMatch, setSelectedMatch] = useState(null);
 
-  // [Phase 4] ดึง Config จาก Context
   const { selectedTournament } = useTournament();
   
-  // กำหนดจำนวนคอร์ท: ใช้ค่าจาก DB หรือ Default 6
-  const NUM_COURTS = selectedTournament?.settings?.totalCourts || 6; 
+  // -------------------------------------------------------
+  // ✅ แก้ไข: ดึงจำนวนสนามจาก Settings (Dynamic)
+  // -------------------------------------------------------
+  const totalCourts = selectedTournament?.settings?.totalCourts || 6; // Default 6
+  
+  // สร้าง Array [1, 2, ..., totalCourts]
+  const courts = useMemo(() => {
+    return Array.from({ length: totalCourts }, (_, i) => i + 1);
+  }, [totalCourts]);
+  // -------------------------------------------------------
 
   const loadAll = async () => {
     setLoading(true);
@@ -194,73 +238,123 @@ export default function CourtRunningPage() {
 
   const handleAssignCourt = async (match, courtNumber) => {
     const matchId = match._id;
+    // Optimistic Update
     setQueue((prev) => prev.filter((m) => m._id !== matchId));
     const updatedMatch = { ...match, court: String(courtNumber), status: "in-progress", startedAt: new Date().toISOString() };
     setInProgress((prev) => [...prev, updatedMatch]);
     setSelectedMatch(null);
+
     try {
       await API.updateSchedule(matchId, { court: String(courtNumber), status: "in-progress", startedAt: updatedMatch.startedAt });
-    } catch (e) { alert("Error: " + e.message); loadAll(); }
+    } catch (e) { 
+      alert("Error: " + e.message); 
+      loadAll(); 
+    }
   };
 
   const handleCancelMatch = async (match) => {
     const matchId = match._id;
+    // Optimistic Update
     setInProgress((prev) => prev.filter((m) => m._id !== matchId));
     const revertedMatch = { ...match, court: null, status: "scheduled", startedAt: null };
     setQueue((prev) => [...prev, revertedMatch].sort((a, b) => (a.matchNo || 0) - (b.matchNo || 0)));
+
     try {
       await API.updateSchedule(matchId, { court: null, status: "scheduled", startedAt: null });
-    } catch (e) { alert("Error: " + e.message); loadAll(); }
+    } catch (e) { 
+        alert("Error: " + e.message); 
+        loadAll(); 
+    }
   };
 
-  // -----------------------------------------------------------------------
-  // [EDITED] แก้ไขเลขสนามแบบ Hardcode เพื่อใช้งานทันที
-  // -----------------------------------------------------------------------
-  const courts = [5, 6, 7, 8, 3, 2];
-  
-  // ถ้าต้องการใช้แบบเดิม (Dynamic) ในอนาคต ให้ comment บรรทัดบน แล้ว uncomment บรรทัดล่างครับ
-  // const courts = Array.from({ length: NUM_COURTS }, (_, i) => i + 1);
-  // -----------------------------------------------------------------------
-
+  // คำนวณสนามที่ว่าง
   const busyCourts = inProgress.map(m => String(m.court));
+  // กรองหาเลขสนามที่ไม่อยู่ใน busyCourts
   const freeCourts = courts.filter(c => !busyCourts.includes(String(c)));
 
   return (
     <>
-      <div className="p-4 md:p-6 bg-slate-50 min-h-screen">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
+      <div className="p-4 bg-slate-100 min-h-screen font-sans">
+        
+        {/* Top Bar */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-4 gap-3 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
           <div>
-            <h1 className="text-2xl font-bold text-slate-800">Court Running (Control Room)</h1>
-            <p className="text-sm text-slate-500">
-                รายการ: <span className="font-semibold text-indigo-600">{selectedTournament?.name}</span> • 
-                จำนวนคอร์ท: {courts.length}
+            <h1 className="text-xl md:text-2xl font-bold text-slate-800 flex items-center gap-2">
+              🎛️ Control Room
+            </h1>
+            <p className="text-xs text-slate-500 mt-1">
+              จัดการลำดับการลงสนาม • {selectedTournament?.name || "Tournament"}
             </p>
           </div>
-          <button className="px-4 py-2 border border-slate-300 rounded-lg bg-white shadow-sm hover:bg-slate-50 text-slate-700 font-medium transition disabled:opacity-50 flex items-center gap-2" onClick={loadAll} disabled={loading}>
-             {loading && <span className="animate-spin text-lg">⟳</span>}
-             {loading ? "กำลังโหลด..." : "Refresh ข้อมูล"}
-          </button>
+          <div className="flex items-center gap-3">
+             <div className="hidden md:flex flex-col items-end mr-2">
+                <span className="text-xs text-slate-400">คิวรอแข่ง</span>
+                <span className="text-lg font-bold text-indigo-600">{queue.length} แมทช์</span>
+             </div>
+             <button 
+                onClick={loadAll} 
+                disabled={loading}
+                className="px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition flex items-center gap-2 text-sm font-bold"
+             >
+                {loading ? "Updating..." : "↻ Refresh"}
+             </button>
+          </div>
         </div>
 
-        {err && <div className="text-red-700 bg-red-100 border border-red-200 p-4 rounded-lg mb-6 shadow-sm">{err}</div>}
+        {err && <div className="text-red-700 bg-red-100 p-4 rounded-lg mb-4 text-sm">{err}</div>}
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 items-start" style={{ minHeight: 'calc(100vh - 200px)' }}>
-          <div className="lg:col-span-1 h-[calc(100vh-180px)] sticky top-4">
-            <MatchQueue matches={queue} onSelectMatch={handleMatchClick} />
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 h-[calc(100vh-140px)]">
+          
+          {/* LEFT: Queue (Sidebar) */}
+          <div className="lg:col-span-1 flex flex-col h-full bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-3 border-b bg-slate-50 flex justify-between items-center">
+              <span className="font-bold text-slate-700">คิวรอเรียก (Queue)</span>
+              <span className="bg-slate-200 text-slate-600 text-xs px-2 py-0.5 rounded-full">{queue.length}</span>
+            </div>
+            
+            <div className="flex-grow overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-slate-300">
+               {queue.length === 0 && (
+                   <div className="text-center text-slate-400 py-10 text-sm">
+                       -- ว่าง --<br/>(ไม่มีแมทช์รอแข่ง)
+                   </div>
+               )}
+               {queue.map(m => (
+                   <MatchQueueItem key={m._id} match={m} onClick={handleMatchClick} />
+               ))}
+            </div>
           </div>
-          <div className="lg:col-span-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
+
+          {/* RIGHT: Active Courts */}
+          <div className="lg:col-span-3 overflow-y-auto pb-10">
+            {/* Grid ปรับตามจำนวนสนามอัตโนมัติ */}
+            <div className={`grid gap-4 ${totalCourts > 6 ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}`}>
               {courts.map(num => {
                 const match = inProgress.find(m => String(m.court) === String(num));
                 return (
-                  <CourtBucket key={num} courtNumber={num} match={match} onFinish={loadAll} onCancel={handleCancelMatch} />
+                  <CourtBucket 
+                    key={num} 
+                    courtNumber={num} 
+                    match={match} 
+                    onFinish={loadAll} 
+                    onCancel={handleCancelMatch} 
+                  />
                 );
               })}
             </div>
           </div>
+
         </div>
       </div>
-      {selectedMatch && <CourtSelectionModal match={selectedMatch} freeCourts={freeCourts} onClose={() => setSelectedMatch(null)} onSelect={handleAssignCourt} />}
+      
+      {/* Modal */}
+      {selectedMatch && (
+        <CourtSelectionModal 
+            match={selectedMatch} 
+            freeCourts={freeCourts} 
+            onClose={() => setSelectedMatch(null)} 
+            onSelect={handleAssignCourt} 
+        />
+      )}
     </>
   );
 }

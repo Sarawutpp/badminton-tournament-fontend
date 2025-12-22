@@ -1,4 +1,3 @@
-// src/layouts/PublicLayout.jsx
 import React, { useEffect } from "react";
 import { NavLink, Outlet, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
@@ -90,6 +89,7 @@ export default function PublicLayout() {
             <TabLink to="schedule">ตารางแข่ง</TabLink>
             <TabLink to="standings">ตารางคะแนน</TabLink>
             <TabLink to="bracket">สายแข่ง (KO)</TabLink>
+            <TabLink to="hall-of-fame">ทำเนียบแชมป์ 🏆</TabLink> {/* ✅ [NEW] เมนูใหม่ */}
           </div>
         </div>
       </nav>

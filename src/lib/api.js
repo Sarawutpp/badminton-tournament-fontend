@@ -1,5 +1,6 @@
 // src/lib/api.js
 export const API_BASE = `${window.location.origin}/api`;
+
 // ---------- helpers ----------
 async function handle(res) {
   if (!res.ok) {
@@ -24,7 +25,6 @@ function getActiveTournamentId() {
 
 async function request(path, opts = {}) {
   // 1. สร้าง URL Object เพื่อจัดการ Query Params ง่ายๆ
-  // หมายเหตุ: path อาจมี query param ติดมาแล้ว ต้องระวัง
   const urlObj = new URL(`${API_BASE}${path}`);
   
   // 2. [Auto-Inject] ใส่ tournamentId ลงใน Query Param เสมอ (สำหรับ GET)
@@ -37,21 +37,19 @@ async function request(path, opts = {}) {
   let options = { ...opts };
   if (activeTid && options.body && typeof options.body === 'string') {
      try {
-        // เช็คว่าเป็น JSON หรือไม่
         const headers = options.headers || {};
         const isJson = headers["Content-Type"] === "application/json" || 
-                       !headers["Content-Type"]; // default fetch wrapper เราเป็น json
+                       !headers["Content-Type"]; 
         
         if (isJson && options.method && ["POST", "PUT", "PATCH"].includes(options.method.toUpperCase())) {
             const bodyObj = JSON.parse(options.body);
-            // ถ้าใน body ยังไม่มี tournamentId ให้ยัดเข้าไป
             if (!bodyObj.tournamentId) {
                 bodyObj.tournamentId = activeTid;
                 options.body = JSON.stringify(bodyObj);
             }
         }
      } catch (e) {
-        // ถ้า parse error ก็ปล่อยผ่าน (อาจไม่ใช่ JSON)
+        // ignore error
      }
   }
 
@@ -99,11 +97,9 @@ export const API = {
   createTeam: (data) =>
     request("/teams", { method: "POST", body: JSON.stringify(data) }),
   
-  // [New] Update Team
   updateTeam: (id, data) =>
     request(`/teams/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
-  // [New] Delete Team
   deleteTeam: (id) =>
     request(`/teams/${id}`, { method: "DELETE" }),
   
@@ -113,28 +109,42 @@ export const API = {
       body: JSON.stringify({ updates }),
     }),
 
+  // ✅ [NEW] Upload Team Photo
+  // ต้องใช้ fetch แยก เพราะห้ามใส่ Content-Type เป็น application/json
+  uploadTeamPhoto: async (teamId, file) => {
+    const formData = new FormData();
+    formData.append("photo", file); // ชื่อ field ต้องตรงกับ backend upload.single('photo')
+
+    const res = await fetch(`${API_BASE}/teams/${teamId}/upload-photo`, {
+      method: "POST",
+      credentials: "include", // ส่ง cookie auth ไปด้วย
+      body: formData, // Browser จะจัดการ Content-Type + Boundary ให้เอง
+    });
+
+    return handle(res);
+  },
+
   // ===== Players =====
   listPlayers: () => request("/players"),
   
   createPlayer: (data) =>
     request("/players", { method: "POST", body: JSON.stringify(data) }),
 
-  // [New] Update Player
   updatePlayer: (id, data) =>
     request(`/players/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
-  // [New] Delete Player
   deletePlayer: (id) =>
     request(`/players/${id}`, { method: "DELETE" }),
 
   importPlayers: (playersData) => 
     request("/players/import", {
       method: "POST",
-      body: JSON.stringify({ players: playersData }), // backend จะ auto-inject tournamentId ให้ถ้าใช้ request wrapper เดิม
+      body: JSON.stringify({ players: playersData }),
     }),
-  createMatch: (data) => request("/matches", { method: "POST", body: JSON.stringify(data) }),
 
   // ===== Matches / Schedule =====
+  createMatch: (data) => request("/matches", { method: "POST", body: JSON.stringify(data) }),
+
   listSchedule: ({
     page = 1,
     pageSize = 50,
@@ -156,7 +166,6 @@ export const API = {
     if (sort) qs.set("sort", sort);
     qs.set("page", page);
     qs.set("pageSize", 2000);
-    // request() จะเติม tournamentId ให้เอง
     return request(`/matches?${qs.toString()}`);
   },
 
@@ -287,7 +296,7 @@ export const API = {
 
   // Utilities
   async listGroups() {
-    const teams = await request("/teams"); // Auto-inject tournamentId
+    const teams = await request("/teams");
     const byLevel = {};
     for (const t of teams) {
       const level = t.handLevel || "UNKNOWN";
@@ -321,7 +330,7 @@ export const API = {
   },
 
   async listGroupMatches() {
-    const matches = await request("/matches"); // Auto-inject tournamentId
+    const matches = await request("/matches");
     const byLevel = {};
     for (const m of matches) {
       if (!/group/i.test(m.round || "group")) continue;
@@ -337,7 +346,7 @@ export const API = {
   },
 
   async listKnockout() {
-    const matches = await request("/matches"); // Auto-inject tournamentId
+    const matches = await request("/matches");
     const byRound = {};
     for (const m of matches) {
       if (m.roundType !== "knockout") continue;
