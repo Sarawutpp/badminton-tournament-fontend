@@ -8,7 +8,7 @@ const DEFAULT_TEAM_ICON = "https://cdn-icons-png.flaticon.com/512/166/166258.png
 
 
 // ถ้าขึ้น Production ต้องเปลี่ยนเป็น domain จริง หรือใช้ Environment Variable
-const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL ;
 
 // Helper: แปลง Path เป็น URL เต็ม
 const getImageUrl = (path) => {
