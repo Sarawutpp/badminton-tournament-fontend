@@ -6,7 +6,7 @@ import { useTournament } from "@/contexts/TournamentContext";
 // --- Constants ---
 const DEFAULT_TEAM_ICON = "https://cdn-icons-png.flaticon.com/512/166/166258.png"; 
 
-// ✅ [แก้ไข] ระบุ URL ของ Backend เพื่อให้ดึงรูปภาพได้ถูกต้อง
+
 // ถ้าขึ้น Production ต้องเปลี่ยนเป็น domain จริง หรือใช้ Environment Variable
 const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
 
