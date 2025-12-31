@@ -188,7 +188,7 @@ function QueueItem({ match, index }) {
   );
 }
 
-// --- Main Page ---
+// --- Main Page ----
 
 export default function PublicCourtRunning() {
   const [loading, setLoading] = useState(true);
