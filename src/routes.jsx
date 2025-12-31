@@ -23,6 +23,7 @@ import ManualMatchPage from "./pages/admin/ManualMatch.jsx";
 
 import KnockoutScoringAdminPage from "./pages/admin/KnockoutScoringAdminPage.jsx";
 import KnockoutBracketAdminPage from "./pages/admin/KnockoutBracketAdminPage.jsx";
+import ShuttlecockManagementPage from "./pages/admin/ShuttlecockManagement.jsx"; // [NEW] Import
 import PrintBatchPage from "./pages/admin/PrintBatchPage";
 
 import StandingsPage from "./pages/public/Standings.jsx";
@@ -30,6 +31,7 @@ import SchedulePage from "./pages/public/Schedule";
 import PublicCourtRunning from "./pages/public/PublicCourtRunning.jsx";
 import PublicKnockoutBracket from "./pages/public/PublicKnockoutBracket.jsx";
 import HallOfFame from "./pages/public/HallOfFame.jsx"; // ✅ [NEW] Import Hall of Fame
+
 
 
 const router = createBrowserRouter([
@@ -77,6 +79,7 @@ const router = createBrowserRouter([
           { path: "knockout/scoring", element: <KnockoutScoringAdminPage /> },
           { path: "knockout/bracket", element: <KnockoutBracketAdminPage /> },
           { path: "knockout", element: <Navigate to="knockout/bracket" replace /> },
+          { path: "shuttlecocks", element: <ShuttlecockManagementPage /> },
         ],
       },
 

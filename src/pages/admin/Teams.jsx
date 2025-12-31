@@ -6,9 +6,8 @@ import { useTournament } from "@/contexts/TournamentContext";
 // --- Constants ---
 const DEFAULT_TEAM_ICON = "https://cdn-icons-png.flaticon.com/512/166/166258.png"; 
 
-
 // ถ้าขึ้น Production ต้องเปลี่ยนเป็น domain จริง หรือใช้ Environment Variable
-const BACKEND_URL = import.meta.env.VITE_API_BASE_URL ;
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
 
 // Helper: แปลง Path เป็น URL เต็ม
 const getImageUrl = (path) => {
@@ -19,7 +18,7 @@ const getImageUrl = (path) => {
 
 // --- Helper Components ---
 function Button({ children, onClick, disabled, variant = "primary", type = "button", className="" }) {
-  const base = "px-4 py-2 rounded-lg font-semibold text-sm shadow-sm transition-colors disabled:opacity-50";
+  const base = "px-4 py-2 rounded-lg font-semibold text-sm shadow-sm transition-colors disabled:opacity-50 flex items-center gap-2 justify-center";
   const styles = {
     primary: "bg-indigo-600 text-white hover:bg-indigo-700",
     outline: "bg-white border border-gray-300 text-gray-700 hover:bg-gray-50",
@@ -114,6 +113,9 @@ export default function TeamsPage() {
   const [err, setErr] = React.useState("");
   const [submitting, setSubmitting] = React.useState(false);
   const [editingId, setEditingId] = React.useState(null);
+  
+  // State สำหรับ Import
+  const [isImporting, setIsImporting] = React.useState(false);
 
   const [form, setForm] = React.useState({
     teamName: "",
@@ -126,6 +128,7 @@ export default function TeamsPage() {
   });
 
   React.useEffect(() => {
+    if (!selectedTournament?._id) return;
     (async () => {
       try {
         setErr("");
@@ -233,6 +236,70 @@ export default function TeamsPage() {
     }
   };
 
+  // --- CSV Import Function ---
+  const handleImportBulk = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      const text = evt.target.result;
+      const lines = text.split(/\r?\n/).filter((line) => line.trim() !== "");
+
+      // CSV Pattern: TeamName, HandLevel, Player1Name, Player1Nick, Player2Name, Player2Nick
+      const parsedData = lines.map((line) => {
+        const cols = line.split(",").map(c => c.trim());
+        if (cols.length < 3) return null; 
+
+        const players = [];
+        if (cols[2]) players.push({ fullName: cols[2], nickname: cols[3] || "" });
+        if (cols[4]) players.push({ fullName: cols[4], nickname: cols[5] || "" });
+
+        return {
+          teamName: cols[0],
+          handLevel: cols[1] || "General",
+          players: players
+        };
+      }).filter(Boolean);
+
+      if (parsedData.length === 0) {
+        alert("ไม่พบข้อมูล หรือรูปแบบไฟล์ไม่ถูกต้อง");
+        return;
+      }
+
+      if (!window.confirm(`พบข้อมูลจำนวน ${parsedData.length} ทีม\nยืนยันการนำเข้าข้อมูล?`)) return;
+
+      setIsImporting(true);
+      try {
+        // [แก้ไข] เอา Token ออก และใส่ credentials: "include" เพื่อส่ง Cookie แทน
+        const res = await fetch(`${BACKEND_URL}/api/teams/import-bulk`, {
+             method: "POST",
+             credentials: "include", // ✅ สำคัญมาก: ส่ง Session Cookie ไปด้วย
+             headers: {
+                 "Content-Type": "application/json",
+             },
+             body: JSON.stringify({
+                 tournamentId: selectedTournament._id,
+                 data: parsedData
+             })
+        });
+        
+        const data = await res.json();
+        if(!res.ok) throw new Error(data.message || "Import failed");
+
+        alert(`นำเข้าสำเร็จ ${data.importedCount} ทีม!`);
+        window.location.reload(); 
+
+      } catch (err) {
+        alert("เกิดข้อผิดพลาด: " + err.message);
+      } finally {
+        setIsImporting(false);
+        e.target.value = "";
+      }
+    };
+    reader.readAsText(file);
+  };
+
   async function onSubmit(e) {
     e.preventDefault();
     if (!form.teamName || !form.teamName.trim()) { setErr("กรอกชื่อทีม"); return; }
@@ -267,7 +334,37 @@ export default function TeamsPage() {
 
   return (
     <div className="flex flex-col gap-4 p-4 md:p-6 pb-20">
-      <h2 className="text-2xl font-bold text-slate-800">จัดการทีม (Teams)</h2>
+      
+      {/* Header & Import Button */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <h2 className="text-2xl font-bold text-slate-800">จัดการทีม (Teams)</h2>
+        
+        {/* Import CSV Button */}
+        <div className="relative group">
+            <input 
+                type="file" 
+                accept=".csv" 
+                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                onChange={handleImportBulk}
+                disabled={isImporting}
+            />
+            <Button variant="outline" disabled={isImporting}>
+                {isImporting ? (
+                  <>
+                    <span className="animate-spin">⏳</span> กำลังนำเข้า...
+                  </>
+                ) : (
+                  <>
+                    📂 Import CSV (Team + Player)
+                  </>
+                )}
+            </Button>
+            <div className="absolute top-full right-0 mt-2 w-72 bg-white border border-gray-200 p-2 rounded shadow-lg text-xs text-gray-500 hidden group-hover:block z-20">
+               รองรับไฟล์ CSV รูปแบบ: <br/>
+               <b>ชื่อทีม, มือ, ชื่อ1, ชื่อเล่น1, ชื่อ2, ชื่อเล่น2</b>
+            </div>
+        </div>
+      </div>
 
       {/* Form Section */}
       <form onSubmit={onSubmit} className={`bg-white rounded-xl shadow-sm border p-5 transition-colors ${editingId ? "border-indigo-500 ring-1 ring-indigo-200" : "border-slate-200"}`}>
@@ -320,7 +417,7 @@ export default function TeamsPage() {
             <FormLabel>
               เลือกผู้เล่น {form.competitionType === "Doubles" ? "(เลือก 2 คน)" : "(เลือก 1 คน)"}
               <span className="text-xs font-normal text-slate-400 ml-2 hidden sm:inline">
-                *หากยังไม่มีชื่อ ให้ไปเพิ่มที่หน้า Players ก่อน
+                *หากยังไม่มีชื่อ ให้ไปเพิ่มที่หน้า Players ก่อน หรือใช้ปุ่ม Import
               </span>
             </FormLabel>
 

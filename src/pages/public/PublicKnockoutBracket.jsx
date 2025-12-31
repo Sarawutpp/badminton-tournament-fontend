@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { API, teamName } from "@/lib/api.js";
-import { useTournament } from "@/contexts/TournamentContext"; // ✅ 1. Import Context
+import { useTournament } from "@/contexts/TournamentContext";
 
 // --- Constants & Configuration ---
 
@@ -29,45 +29,55 @@ const ROUND_LABELS = {
 function fillBracketStructure(existingRounds) {
   if (!existingRounds.length) return [];
 
-  const startRoundCode = existingRounds[0].code; 
+  const startRoundCode = existingRounds[0].code;
   const startIndex = ROUND_FLOW.indexOf(startRoundCode);
-  
+
   if (startIndex === -1) return existingRounds;
 
   const fullStructure = [...existingRounds];
   const roundMap = {};
-  existingRounds.forEach(r => roundMap[r.code] = r);
+  existingRounds.forEach((r) => (roundMap[r.code] = r));
 
   for (let i = startIndex + 1; i < ROUND_FLOW.length; i++) {
     const code = ROUND_FLOW[i];
     if (roundMap[code]) continue;
 
-    const prevRoundCode = ROUND_FLOW[i-1];
-    const prevRoundData = fullStructure.find(r => r.code === prevRoundCode);
-    
+    const prevRoundCode = ROUND_FLOW[i - 1];
+    const prevRoundData = fullStructure.find((r) => r.code === prevRoundCode);
+
     const prevCountTop = prevRoundData ? prevRoundData.top.length : 0;
     const prevCountBottom = prevRoundData ? prevRoundData.bottom.length : 0;
 
     const newTopCount = Math.ceil(prevCountTop / 2);
     const newBottomCount = Math.ceil(prevCountBottom / 2);
 
-    const ghostTop = Array(newTopCount).fill(0).map((_, idx) => ({ _id: `ghost-${code}-top-${idx}`, isPlaceholder: true }));
-    const ghostBottom = Array(newBottomCount).fill(0).map((_, idx) => ({ _id: `ghost-${code}-bottom-${idx}`, isPlaceholder: true }));
+    const ghostTop = Array(newTopCount)
+      .fill(0)
+      .map((_, idx) => ({
+        _id: `ghost-${code}-top-${idx}`,
+        isPlaceholder: true,
+      }));
+    const ghostBottom = Array(newBottomCount)
+      .fill(0)
+      .map((_, idx) => ({
+        _id: `ghost-${code}-bottom-${idx}`,
+        isPlaceholder: true,
+      }));
 
-    if (code === 'F') {
-        fullStructure.push({
-            code,
-            top: [],
-            bottom: [],
-            unknown: [{ _id: `ghost-final`, isPlaceholder: true }]
-        });
+    if (code === "F") {
+      fullStructure.push({
+        code,
+        top: [],
+        bottom: [],
+        unknown: [{ _id: `ghost-final`, isPlaceholder: true }],
+      });
     } else {
-        fullStructure.push({
-            code,
-            top: ghostTop,
-            bottom: ghostBottom,
-            unknown: []
-        });
+      fullStructure.push({
+        code,
+        top: ghostTop,
+        bottom: ghostBottom,
+        unknown: [],
+      });
     }
   }
 
@@ -84,8 +94,8 @@ function compareStatsOnly(a, b) {
 }
 
 function compareInGroup(a, b) {
-  const rankA = (a.manualRank && a.manualRank > 0) ? a.manualRank : 999;
-  const rankB = (b.manualRank && b.manualRank > 0) ? b.manualRank : 999;
+  const rankA = a.manualRank && a.manualRank > 0 ? a.manualRank : 999;
+  const rankB = b.manualRank && b.manualRank > 0 ? b.manualRank : 999;
   if (rankA !== rankB) return rankA - rankB;
   return compareStatsOnly(a, b);
 }
@@ -95,7 +105,11 @@ function compareInGroup(a, b) {
 function KnockoutMatchCard({ match, compact = false }) {
   if (match.isPlaceholder) {
     return (
-      <div className={`relative rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/50 flex items-center justify-center text-slate-400 text-[10px] select-none ${compact ? "w-[160px] h-[60px] md:w-[180px]" : "w-full h-20"}`}>
+      <div
+        className={`relative rounded-lg border-2 border-dashed border-slate-200 bg-slate-50/50 flex items-center justify-center text-slate-400 text-[10px] select-none ${
+          compact ? "w-[160px] h-[60px] md:w-[180px]" : "w-full h-20"
+        }`}
+      >
         รอคู่แข่งขัน...
       </div>
     );
@@ -104,24 +118,25 @@ function KnockoutMatchCard({ match, compact = false }) {
   // คำนวณจำนวนเซ็ต (จาก sets array)
   let t1Sets = 0;
   let t2Sets = 0;
-  
+
   if (Array.isArray(match.sets)) {
-      match.sets.forEach(s => {
-          const t1 = Number(s.t1 || 0);
-          const t2 = Number(s.t2 || 0);
-          if (t1 > t2) t1Sets++;
-          else if (t2 > t1) t2Sets++;
-      });
+    match.sets.forEach((s) => {
+      const t1 = Number(s.t1 || 0);
+      const t2 = Number(s.t2 || 0);
+      if (t1 > t2) t1Sets++;
+      else if (t2 > t1) t2Sets++;
+    });
   }
 
-  // กรณีแข่งไม่จบ หรือยังไม่แข่ง อาจจะไม่มี winner
   const isTeam1Win = match.winner && match.winner === match.team1?._id;
   const isTeam2Win = match.winner && match.winner === match.team2?._id;
   const isLive = match.status === "in-progress";
-  
+
   const textSize = compact ? "text-[11px]" : "text-sm";
   const pY = compact ? "py-1" : "py-1.5";
-  const widthClass = compact ? "min-w-[160px] w-[160px] md:w-[180px]" : "w-full";
+  const widthClass = compact
+    ? "min-w-[160px] w-[160px] md:w-[180px]"
+    : "w-full";
 
   return (
     <div
@@ -137,30 +152,50 @@ function KnockoutMatchCard({ match, compact = false }) {
 
       <div className="p-2">
         {/* TEAM 1 */}
-        <div className={`flex justify-between items-center ${pY} border-b border-slate-100`}>
-          <div className={`flex items-center gap-1.5 truncate ${isTeam1Win ? "font-bold text-slate-900" : "text-slate-500"}`}>
-            <span className={`truncate ${textSize}`}>{teamName(match.team1)}</span>
+        <div
+          className={`flex justify-between items-center ${pY} border-b border-slate-100`}
+        >
+          <div
+            className={`flex items-center gap-1.5 truncate ${
+              isTeam1Win ? "font-bold text-slate-900" : "text-slate-500"
+            }`}
+          >
+            <span className={`truncate ${textSize}`}>
+              {teamName(match.team1)}
+            </span>
             {isTeam1Win && <span className="text-[10px]">🏆</span>}
           </div>
-          {/* ✅ แสดงจำนวนเซ็ต */}
-          <span className={`${textSize} font-mono ${isTeam1Win ? "font-bold text-slate-900" : "text-slate-400"}`}>
+          <span
+            className={`${textSize} font-mono ${
+              isTeam1Win ? "font-bold text-slate-900" : "text-slate-400"
+            }`}
+          >
             {t1Sets}
           </span>
         </div>
-        
+
         {/* TEAM 2 */}
         <div className={`flex justify-between items-center ${pY}`}>
-          <div className={`flex items-center gap-1.5 truncate ${isTeam2Win ? "font-bold text-slate-900" : "text-slate-500"}`}>
-            <span className={`truncate ${textSize}`}>{teamName(match.team2)}</span>
+          <div
+            className={`flex items-center gap-1.5 truncate ${
+              isTeam2Win ? "font-bold text-slate-900" : "text-slate-500"
+            }`}
+          >
+            <span className={`truncate ${textSize}`}>
+              {teamName(match.team2)}
+            </span>
             {isTeam2Win && <span className="text-[10px]">🏆</span>}
           </div>
-          {/* ✅ แสดงจำนวนเซ็ต */}
-          <span className={`${textSize} font-mono ${isTeam2Win ? "font-bold text-slate-900" : "text-slate-400"}`}>
+          <span
+            className={`${textSize} font-mono ${
+              isTeam2Win ? "font-bold text-slate-900" : "text-slate-400"
+            }`}
+          >
             {t2Sets}
           </span>
         </div>
       </div>
-      
+
       <div className="bg-slate-50 px-2 py-0.5 flex justify-between items-center text-[9px] text-slate-400 border-t border-slate-100">
         <span>#{match.matchNo}</span>
         {match.court && <span>คอร์ท {match.court}</span>}
@@ -175,19 +210,20 @@ function BracketTreeView({ roundsData, title, colorClass }) {
   return (
     <div className="mb-6 p-3 md:p-4 bg-slate-50 rounded-xl border border-slate-200 shadow-inner overflow-hidden">
       <div className="flex items-center gap-2 mb-3 sticky left-0">
-         <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`}></span>
-         <h3 className="font-bold text-sm md:text-base text-slate-700">{title}</h3>
+        <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`}></span>
+        <h3 className="font-bold text-sm md:text-base text-slate-700">
+          {title}
+        </h3>
       </div>
-      
+
       <div className="overflow-x-auto pb-4 custom-scrollbar">
         <div className="flex items-stretch gap-6 md:gap-8 px-2 min-w-max">
-          
           {roundsData.map((round, rIndex) => {
             const isUpper = title.includes("Upper");
             let displayMatches = isUpper ? round.top : round.bottom;
-            
-            if (round.code === 'F') {
-               displayMatches = [...displayMatches, ...round.unknown];
+
+            if (round.code === "F") {
+              displayMatches = [...displayMatches, ...round.unknown];
             }
 
             if (displayMatches.length === 0) return null;
@@ -202,20 +238,25 @@ function BracketTreeView({ roundsData, title, colorClass }) {
 
                 <div className="flex flex-col justify-around h-full gap-3">
                   {displayMatches.map((m, mIndex) => (
-                    <div key={m._id || mIndex} className="relative flex items-center">
-                       {rIndex > 0 && (
-                         <div className="absolute -left-6 md:-left-8 w-6 md:w-8 flex items-center">
-                            <div className="w-full h-px bg-slate-300"></div>
-                         </div>
-                       )}
+                    <div
+                      key={m._id || mIndex}
+                      className="relative flex items-center"
+                    >
+                      {rIndex > 0 && (
+                        <div className="absolute -left-6 md:-left-8 w-6 md:w-8 flex items-center">
+                          <div className="w-full h-px bg-slate-300"></div>
+                        </div>
+                      )}
 
-                       <KnockoutMatchCard match={m} compact={true} />
+                      <KnockoutMatchCard match={m} compact={true} />
 
-                       {rIndex < roundsData.length - 1 && (
-                         <div className={`absolute -right-6 md:-right-8 w-6 md:w-8 h-full pointer-events-none flex flex-col justify-center`}>
-                            <div className="absolute top-1/2 right-0 w-full h-px bg-slate-300"></div>
-                         </div>
-                       )}
+                      {rIndex < roundsData.length - 1 && (
+                        <div
+                          className={`absolute -right-6 md:-right-8 w-6 md:w-8 h-full pointer-events-none flex flex-col justify-center`}
+                        >
+                          <div className="absolute top-1/2 right-0 w-full h-px bg-slate-300"></div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -244,38 +285,53 @@ function BracketListView({ groupedData }) {
           <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-3 md:p-5">
             {roundGroup.top.length > 0 && (
               <div className="mb-4">
-                 <div className="flex items-center gap-2 mb-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <h4 className="text-xs font-bold text-slate-500 uppercase">สายบน (Upper)</h4>
-                 </div>
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                   {roundGroup.top.map(m => <KnockoutMatchCard key={m._id} match={m} />)}
-                 </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                  <h4 className="text-xs font-bold text-slate-500 uppercase">
+                    สายบน (Upper)
+                  </h4>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {roundGroup.top.map((m) => (
+                    <KnockoutMatchCard key={m._id} match={m} />
+                  ))}
+                </div>
               </div>
             )}
-            
+
             {roundGroup.bottom.length > 0 && (
               <>
-                 {roundGroup.top.length > 0 && <div className="border-t border-slate-100 my-4"></div>}
-                 <div>
-                    <div className="flex items-center gap-2 mb-2">
-                        <span className="w-2 h-2 rounded-full bg-amber-500"></span>
-                        <h4 className="text-xs font-bold text-slate-500 uppercase">สายล่าง (Lower)</h4>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                      {roundGroup.bottom.map(m => <KnockoutMatchCard key={m._id} match={m} />)}
-                    </div>
-                 </div>
+                {roundGroup.top.length > 0 && (
+                  <div className="border-t border-slate-100 my-4"></div>
+                )}
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="w-2 h-2 rounded-full bg-amber-500"></span>
+                    <h4 className="text-xs font-bold text-slate-500 uppercase">
+                      สายล่าง (Lower)
+                    </h4>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {roundGroup.bottom.map((m) => (
+                      <KnockoutMatchCard key={m._id} match={m} />
+                    ))}
+                  </div>
+                </div>
               </>
             )}
 
             {roundGroup.unknown.length > 0 && (
-               <>
-                 {(roundGroup.top.length > 0 || roundGroup.bottom.length > 0) && <div className="border-t border-slate-100 my-4"></div>}
-                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
-                   {roundGroup.unknown.map(m => <KnockoutMatchCard key={m._id} match={m} />)}
-                 </div>
-               </>
+              <>
+                {(roundGroup.top.length > 0 ||
+                  roundGroup.bottom.length > 0) && (
+                  <div className="border-t border-slate-100 my-4"></div>
+                )}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                  {roundGroup.unknown.map((m) => (
+                    <KnockoutMatchCard key={m._id} match={m} />
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </section>
@@ -285,16 +341,30 @@ function BracketListView({ groupedData }) {
 }
 
 function SeedingTableView({ seedingData }) {
-  if (!seedingData) return <div className="text-center py-8 text-slate-400">ไม่มีข้อมูลการจัดอันดับ</div>;
+  if (!seedingData)
+    return (
+      <div className="text-center py-8 text-slate-400">
+        ไม่มีข้อมูลการจัดอันดับ
+      </div>
+    );
 
   const { upper, lower } = seedingData;
 
+  // 🔥 UPDATE: กำหนดจำนวน Seed ตามขนาดสาย
+  // ถ้ามีทีมมากกว่า 8 ทีม -> ให้ 8 ทีมแรกเป็น Seed
+  // ถ้ามีทีม 8 ทีมหรือน้อยกว่า (เช่นรุ่น 8 ทีม) -> ให้ 4 ทีมแรกเป็น Seed (ที่ 1,2 ของ 2 กลุ่ม)
+  const seedLimit = upper.length > 8 ? 8 : 4;
+
   const renderTable = (teams, title, colorClass, badgeType) => (
     <div className="bg-white rounded-xl border border-slate-200 overflow-hidden mb-6">
-      <div className={`px-4 py-3 border-b border-slate-100 flex items-center gap-2 ${colorClass} bg-opacity-10`}>
-         <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`}></span>
-         <h3 className="font-bold text-slate-800">{title}</h3>
-         <span className="text-xs text-slate-500 ml-auto">({teams.length} ทีม)</span>
+      <div
+        className={`px-4 py-3 border-b border-slate-100 flex items-center gap-2 ${colorClass} bg-opacity-10`}
+      >
+        <span className={`w-2.5 h-2.5 rounded-full ${colorClass}`}></span>
+        <h3 className="font-bold text-slate-800">{title}</h3>
+        <span className="text-xs text-slate-500 ml-auto">
+          ({teams.length} ทีม)
+        </span>
       </div>
       <div className="overflow-x-auto">
         <table className="w-full text-xs md:text-sm text-left">
@@ -311,43 +381,58 @@ function SeedingTableView({ seedingData }) {
           <tbody className="divide-y divide-slate-100">
             {teams.map((t, i) => (
               <tr key={t.teamId} className="hover:bg-slate-50">
-                <td className="px-4 py-2 text-center font-mono text-slate-400">{i + 1}</td>
+                <td className="px-4 py-2 text-center font-mono text-slate-400">
+                  {i + 1}
+                </td>
                 <td className="px-4 py-2 font-medium text-slate-900">
                   {t.teamName}
                   {t.manualRank > 0 && (
-                     <span className="ml-2 text-[10px] bg-yellow-100 text-yellow-700 px-1 rounded border border-yellow-200" title="Manual Rank">
-                       MR{t.manualRank}
-                     </span>
+                    <span
+                      className="ml-2 text-[10px] bg-yellow-100 text-yellow-700 px-1 rounded border border-yellow-200"
+                      title="Manual Rank"
+                    >
+                      MR{t.manualRank}
+                    </span>
                   )}
                 </td>
                 <td className="px-4 py-2 text-center">
-                   <span className="inline-block px-1.5 rounded bg-slate-100 text-slate-600 font-mono text-[10px] border border-slate-200">
-                     {t.group}{t.groupRank}
-                   </span>
+                  <span className="inline-block px-1.5 rounded bg-slate-100 text-slate-600 font-mono text-[10px] border border-slate-200">
+                    {t.group}
+                    {t.groupRank}
+                  </span>
                 </td>
-                <td className="px-4 py-2 text-center font-bold text-indigo-600">{t.points}</td>
+                <td className="px-4 py-2 text-center font-bold text-indigo-600">
+                  {t.points}
+                </td>
                 <td className="px-4 py-2 text-center text-slate-500">
-                    {t.scoreDiff > 0 ? `+${t.scoreDiff}` : t.scoreDiff}
+                  {t.scoreDiff > 0 ? `+${t.scoreDiff}` : t.scoreDiff}
                 </td>
                 <td className="px-4 py-2 text-right">
-                   {badgeType === "SEED" && i < (teams.length / 2) ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
-                        ⚡ ทีมวาง (Seed)
-                      </span>
-                   ) : badgeType === "SEED" ? (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                        🎲 จับสลาก (Draw)
-                      </span>
-                   ) : (
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
-                         สายล่าง
-                      </span>
-                   )}
+                  {badgeType === "SEED" && i < seedLimit ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">
+                      ⚡ ทีมวาง (Seed)
+                    </span>
+                  ) : badgeType === "SEED" ? (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+                      🎲 จับสลาก (Draw)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                      สายล่าง
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
             {teams.length === 0 && (
-                <tr><td colSpan={6} className="px-4 py-8 text-center text-slate-400">ไม่มีทีมในสายนี้</td></tr>
+              <tr>
+                <td
+                  colSpan={6}
+                  className="px-4 py-8 text-center text-slate-400"
+                >
+                  ไม่มีทีมในสายนี้
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -357,12 +442,26 @@ function SeedingTableView({ seedingData }) {
 
   return (
     <div className="animate-in fade-in duration-500">
-       <div className="mb-4 bg-indigo-50 border border-indigo-100 text-indigo-800 px-4 py-3 rounded-xl text-xs md:text-sm">
-          ℹ️ <strong>เกณฑ์การจัดวางสาย:</strong> เรียงลำดับจาก คะแนนรวม {'>'} ผลต่างเซ็ต {'>'} ผลต่างแต้ม {'>'} แต้มได้ <br/>
-          (ทีมวาง จะได้เจอกับ ทีมจับสลาก ในรอบแรกของสายบน ส่วนสายล่างจับสลากเจอกันหมด)
-       </div>
-       {renderTable(upper, "สายบน (Upper Bracket Qualifiers)", "bg-emerald-500", "SEED")}
-       {renderTable(lower, "สายล่าง (Lower Bracket Qualifiers)", "bg-amber-500", "LOWER")}
+      <div className="mb-4 bg-indigo-50 border border-indigo-100 text-indigo-800 px-4 py-3 rounded-xl text-xs md:text-sm">
+        ℹ️ <strong>เกณฑ์การจัดวางสาย:</strong> เรียงลำดับจาก คะแนนรวม {">"}{" "}
+        ผลต่างเซ็ต {">"} ผลต่างแต้ม {">"} แต้มได้ <br />
+        (ทีมวาง จะได้เจอกับ ทีมจับสลาก ในรอบแรกของสายบน
+        ส่วนสายล่างจับสลากเจอกันหมด)
+      </div>
+      {renderTable(
+        upper,
+        "สายบน (Upper Bracket Qualifiers)",
+        "bg-emerald-500",
+        "SEED"
+      )}
+      {/* ซ่อนตารางสายล่างถ้าไม่มีทีม */}
+      {lower.length > 0 &&
+        renderTable(
+          lower,
+          "สายล่าง (Lower Bracket Qualifiers)",
+          "bg-amber-500",
+          "LOWER"
+        )}
     </div>
   );
 }
@@ -370,45 +469,43 @@ function SeedingTableView({ seedingData }) {
 // --- Main Page Component ---
 
 export default function PublicKnockoutBracket() {
-  const { selectedTournament } = useTournament(); // ✅ 2. ใช้ Context
-  
-  // ✅ 3. สร้าง Options แบบ Dynamic
+  const { selectedTournament } = useTournament();
+
   const levelOptions = useMemo(() => {
     const cats = selectedTournament?.settings?.categories || [];
-    return cats.map(c => ({ value: c, label: c }));
+    return cats.map((c) => ({ value: c, label: c }));
   }, [selectedTournament]);
 
-  const [handLevel, setHandLevel] = useState(""); // เริ่มต้นว่าง
+  const [handLevel, setHandLevel] = useState("");
   const [matches, setMatches] = useState([]);
-  const [standings, setStandings] = useState(null); 
+  const [standings, setStandings] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [viewMode, setViewMode] = useState("list"); 
+  const [viewMode, setViewMode] = useState("tree");
 
-  // ✅ 4. Auto Select level แรก
   useEffect(() => {
-     if (levelOptions.length > 0 && !handLevel) {
-        setHandLevel(levelOptions[0].value);
-     }
+    if (levelOptions.length > 0 && !handLevel) {
+      setHandLevel(levelOptions[0].value);
+    }
   }, [levelOptions, handLevel]);
 
   const fetchData = async () => {
-    if (!handLevel) return; // อย่าเพิ่งโหลดถ้ายังไม่มี level
+    if (!handLevel) return;
     setLoading(true);
     try {
-      // เพิ่ม filter tournamentId (ถ้า api รองรับ auto-inject แล้วก็ไม่ต้องห่วง)
       const [matchesRes, standingsRes] = await Promise.all([
-         API.listSchedule({
-            handLevel,
-            roundType: "knockout", 
-            pageSize: 200,
-            sort: "matchNo",
-         }),
-         API.getStandings(handLevel)
+        API.listSchedule({
+          handLevel,
+          roundType: "knockout",
+          pageSize: 200,
+          sort: "matchNo",
+        }),
+        API.getStandings(handLevel),
       ]);
 
-      const onlyKnockout = (matchesRes.items || []).filter(m => 
-          m.roundType === 'knockout' && 
-          !m.round?.toLowerCase().includes('group') 
+      const onlyKnockout = (matchesRes.items || []).filter(
+        (m) =>
+          m.roundType === "knockout" &&
+          !m.round?.toLowerCase().includes("group")
       );
 
       setMatches(onlyKnockout);
@@ -430,7 +527,7 @@ export default function PublicKnockoutBracket() {
   // Process Knockout Data
   const bracketData = useMemo(() => {
     if (!matches.length) return [];
-    
+
     const roundsMap = {};
     matches.forEach((m) => {
       if (m.round?.toLowerCase().includes("group")) return;
@@ -452,49 +549,64 @@ export default function PublicKnockoutBracket() {
     });
 
     if (viewMode === "tree") {
-        sortedRounds = fillBracketStructure(sortedRounds);
+      sortedRounds = fillBracketStructure(sortedRounds);
     }
 
     return sortedRounds;
   }, [matches, viewMode]);
 
+  // 🔥 UPDATE: ปรับ Logic การคำนวณ Seeding ให้เหมือน Backend
   const seedingData = useMemo(() => {
-    if (!standings || !standings.groups || standings.groups.length === 0) return null;
+    if (!standings || !standings.groups || standings.groups.length === 0)
+      return null;
 
     let allTeams = [];
-    standings.groups.forEach(g => {
-        const teamsInGroup = [...g.teams].sort((a, b) => compareInGroup(a, b));
-        teamsInGroup.forEach((t, idx) => {
-            allTeams.push({ 
-                ...t, 
-                group: g.groupName, 
-                groupRank: idx + 1,
-                teamName: teamName(t)
-            });
+    standings.groups.forEach((g) => {
+      const teamsInGroup = [...g.teams].sort((a, b) => compareInGroup(a, b));
+      teamsInGroup.forEach((t, idx) => {
+        allTeams.push({
+          ...t,
+          group: g.groupName,
+          groupRank: idx + 1,
+          teamName: teamName(t),
         });
+      });
     });
 
-    // ✅ 5. เช็คว่าเป็นการแข่งแบบ 24 ทีม หรือไม่ (จาก Config ของ Tournament)
-    const is24Teams = selectedTournament?.settings?.qualificationType === "TOP2_PLUS_4BEST_3RD";
+    const settings = selectedTournament?.settings || {};
+    const isMini = settings.qualificationType === "MINI_SPLIT";
+    const groupCount = standings.groups.length;
+
+    const is24Teams =
+      settings.qualificationType === "TOP2_PLUS_4BEST_3RD" || groupCount === 6;
+
+    // ✅ NEW: เช็คว่าเป็น 8 Teams Standard (2 Groups & ไม่ใช่ Mini)
+    const is8TeamsStandard = !isMini && groupCount === 2;
 
     let upper = [];
     let lower = [];
 
     if (is24Teams) {
-        const rank1s = allTeams.filter(t => t.groupRank === 1);
-        const rank2s = allTeams.filter(t => t.groupRank === 2);
-        const rank3s = allTeams.filter(t => t.groupRank === 3);
-        const rank4s = allTeams.filter(t => t.groupRank === 4);
+      // Logic 24 ทีม: บน 16, ล่าง 8
+      const rank1s = allTeams.filter((t) => t.groupRank === 1);
+      const rank2s = allTeams.filter((t) => t.groupRank === 2);
+      const rank3s = allTeams.filter((t) => t.groupRank === 3);
+      const rank4s = allTeams.filter((t) => t.groupRank === 4);
 
-        rank3s.sort((a, b) => compareStatsOnly(a, b));
-        const best3rd = rank3s.slice(0, 4);
-        const remaining3rd = rank3s.slice(4);
+      rank3s.sort((a, b) => compareStatsOnly(a, b));
+      const best3rd = rank3s.slice(0, 4);
+      const remaining3rd = rank3s.slice(4);
 
-        upper = [...rank1s, ...rank2s, ...best3rd];
-        lower = [...remaining3rd, ...rank4s];
+      upper = [...rank1s, ...rank2s, ...best3rd];
+      lower = [...remaining3rd, ...rank4s];
+    } else if (is8TeamsStandard) {
+      // 🔥 Logic 8 Teams (Standard): ทุกคนเข้าสายบน (Upper) ทั้งหมด!
+      upper = [...allTeams];
+      lower = []; // ไม่มีสายล่าง
     } else {
-        upper = allTeams.filter(t => t.groupRank <= 2);
-        lower = allTeams.filter(t => t.groupRank >= 3);
+      // Logic ปกติ/Default: บนเอา 1-2, ล่างเอา 3-4
+      upper = allTeams.filter((t) => t.groupRank <= 2);
+      lower = allTeams.filter((t) => t.groupRank >= 3);
     }
 
     upper.sort((a, b) => compareStatsOnly(a, b));
@@ -505,18 +617,19 @@ export default function PublicKnockoutBracket() {
 
   // Handle Loading Empty State
   if (levelOptions.length === 0) {
-      return (
-        <div className="min-h-screen bg-slate-50 p-6 flex flex-col items-center pt-20">
-            <div className="text-4xl mb-4">📭</div>
-            <h3 className="text-slate-500">ยังไม่มีข้อมูลประเภทการแข่งขันในรายการนี้</h3>
-        </div>
-      );
+    return (
+      <div className="min-h-screen bg-slate-50 p-6 flex flex-col items-center pt-20">
+        <div className="text-4xl mb-4">📭</div>
+        <h3 className="text-slate-500">
+          ยังไม่มีข้อมูลประเภทการแข่งขันในรายการนี้
+        </h3>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-slate-50 p-3 md:p-6 pb-20">
       <div className="max-w-7xl mx-auto">
-        
         {/* Header Compact Version */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
           <h1 className="text-xl md:text-2xl font-bold text-indigo-800 shrink-0">
@@ -524,80 +637,109 @@ export default function PublicKnockoutBracket() {
           </h1>
 
           <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
-             <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm shrink-0 self-start sm:self-auto">
-                <button 
-                  onClick={() => setViewMode("list")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${viewMode === 'list' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                  <span className="hidden sm:inline">📜</span> รายการ
-                </button>
-                <button 
-                  onClick={() => setViewMode("tree")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${viewMode === 'tree' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                  <span className="hidden sm:inline">🌳</span> แผนผัง
-                </button>
-                <button 
-                  onClick={() => setViewMode("seeding")}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${viewMode === 'seeding' ? 'bg-indigo-100 text-indigo-700 shadow-sm' : 'text-slate-500 hover:bg-slate-50'}`}
-                >
-                  <span className="hidden sm:inline">📊</span> อันดับวางสาย
-                </button>
-             </div>
+            <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm shrink-0 self-start sm:self-auto">
+              <button
+                onClick={() => setViewMode("tree")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${
+                  viewMode === "tree"
+                    ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                <span className="hidden sm:inline">🌳</span> แผนผัง
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${
+                  viewMode === "list"
+                    ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                <span className="hidden sm:inline">📜</span> รายการ
+              </button>
 
-             {/* ✅ 6. Dynamic Dropdown */}
-             <div className="relative flex-grow md:flex-grow-0">
-                <select
-                  className="w-full md:w-48 appearance-none rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-100"
-                  value={handLevel}
-                  onChange={(e) => setHandLevel(e.target.value)}
-                >
-                  {levelOptions.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                       {opt.label}
-                    </option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-indigo-500">
-                  <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20"><path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"/></svg>
-                </div>
-             </div>
+              <button
+                onClick={() => setViewMode("seeding")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${
+                  viewMode === "seeding"
+                    ? "bg-indigo-100 text-indigo-700 shadow-sm"
+                    : "text-slate-500 hover:bg-slate-50"
+                }`}
+              >
+                <span className="hidden sm:inline">📊</span> อันดับวางสาย
+              </button>
+            </div>
+
+            <div className="relative flex-grow md:flex-grow-0">
+              <select
+                className="w-full md:w-48 appearance-none rounded-xl border border-indigo-200 bg-white px-3 py-2 text-sm font-semibold text-indigo-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                value={handLevel}
+                onChange={(e) => setHandLevel(e.target.value)}
+              >
+                {levelOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-indigo-500">
+                <svg className="h-4 w-4 fill-current" viewBox="0 0 20 20">
+                  <path d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" />
+                </svg>
+              </div>
+            </div>
           </div>
         </div>
 
         {loading && matches.length === 0 && (
-           <div className="text-center py-10 text-slate-400 text-sm">
-             <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-indigo-500 border-t-transparent mb-2"></div>
-             <div>กำลังโหลดข้อมูล...</div>
-           </div>
+          <div className="text-center py-10 text-slate-400 text-sm">
+            <div className="inline-block animate-spin rounded-full h-5 w-5 border-2 border-indigo-500 border-t-transparent mb-2"></div>
+            <div>กำลังโหลดข้อมูล...</div>
+          </div>
         )}
 
         {!loading && matches.length === 0 && viewMode !== "seeding" && (
           <div className="rounded-xl bg-white border border-dashed border-slate-300 p-8 text-center">
             <div className="text-3xl mb-2">🏆</div>
-            <h3 className="text-slate-900 font-semibold text-sm">ยังไม่มีข้อมูลสายแข่งสำหรับรุ่นนี้</h3>
-            <p className="text-xs text-slate-400 mt-1">ต้องรอให้ Admin ทำการ Generate สายแข่งก่อน</p>
+            <h3 className="text-slate-900 font-semibold text-sm">
+              ยังไม่มีข้อมูลสายแข่งสำหรับรุ่นนี้
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">
+              ต้องรอให้ Admin ทำการ Generate สายแข่งก่อน
+            </p>
           </div>
         )}
 
         {!loading && (
           <>
-            {viewMode === "list" && matches.length > 0 && <BracketListView groupedData={bracketData} />}
-            
+            {viewMode === "list" && matches.length > 0 && (
+              <BracketListView groupedData={bracketData} />
+            )}
+
             {viewMode === "tree" && matches.length > 0 && (
               <div className="space-y-6 animate-in zoom-in-95 duration-300">
                 <div className="text-center text-[10px] text-slate-400 md:hidden mb-1">
                   (เลื่อนซ้าย-ขวา เพื่อดูแผนผังทั้งหมด)
                 </div>
-                <BracketTreeView roundsData={bracketData} title="สายบน (Upper Bracket)" colorClass="bg-emerald-500" />
-                <BracketTreeView roundsData={bracketData} title="สายล่าง (Lower Bracket)" colorClass="bg-amber-500" />
+                <BracketTreeView
+                  roundsData={bracketData}
+                  title="สายบน (Upper Bracket)"
+                  colorClass="bg-emerald-500"
+                />
+                <BracketTreeView
+                  roundsData={bracketData}
+                  title="สายล่าง (Lower Bracket)"
+                  colorClass="bg-amber-500"
+                />
               </div>
             )}
 
-            {viewMode === "seeding" && <SeedingTableView seedingData={seedingData} />}
+            {viewMode === "seeding" && (
+              <SeedingTableView seedingData={seedingData} />
+            )}
           </>
         )}
-
       </div>
     </div>
   );

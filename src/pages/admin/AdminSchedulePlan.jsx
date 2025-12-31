@@ -5,6 +5,7 @@ import React from "react";
 import { API, teamName } from "@/lib/api.js";
 import { HAND_LEVEL_OPTIONS } from "@/lib/types.js"; 
 import { useTournament } from "@/contexts/TournamentContext"; // ✅ 1. Import Context
+import * as XLSX from "xlsx";
 
 const pageSize = 5000;
 
@@ -321,6 +322,41 @@ export default function AdminSchedulePlan() {
     try { await API.updateSchedule(matchId, { scheduledAt: iso }); } catch(e) {}
   }
 
+  // ============ Export Excel ============
+  const handleExportExcel = () => {
+    if (!items || items.length === 0) {
+      alert("ไม่มีข้อมูลสำหรับ Export");
+      return;
+    }
+
+    // 1. เตรียมข้อมูลให้เป็น Flat Object
+    const exportData = items.map((m, index) => ({
+      "ลำดับ (Seq)": index + 1,
+      "เวลา (Time)": formatTime(m.scheduledAt) || "-",
+      "Match ID": m.matchId || "-",
+      "รุ่น (Hand)": m.handLevel,
+      "กลุ่ม (Group)": m.group || "-",
+      "สนาม (Court)": m.court || "-",
+      "ทีม 1": teamName(m.team1),
+      "ทีม 2": teamName(m.team2),
+      "สถานะ": m.status === "finished" ? "จบแล้ว" : "รอแข่ง"
+    }));
+
+    // 2. สร้าง Worksheet และ Workbook
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Schedule");
+
+    // 3. ปรับความกว้างคอลัมน์ (Optional เพื่อความสวยงาม)
+    ws['!cols'] = [
+      { wch: 10 }, { wch: 10 }, { wch: 15 }, { wch: 10 }, 
+      { wch: 10 }, { wch: 10 }, { wch: 25 }, { wch: 25 }, { wch: 10 }
+    ];
+
+    // 4. สั่งดาวน์โหลดไฟล์
+    XLSX.writeFile(wb, `Schedule_Backup_${new Date().getTime()}.xlsx`);
+  };
+
   // ============ Render ============
   return (
     <div className="min-h-screen bg-slate-50 p-3 md:p-6 pb-24">
@@ -489,6 +525,9 @@ export default function AdminSchedulePlan() {
            </button>
            <button onClick={handleAutoTime} className="bg-white text-slate-700 border border-slate-300 shadow-lg px-4 py-3 rounded-full font-bold hover:bg-slate-50 transition">
              🕒 เติมเวลา Auto
+           </button>
+           <button onClick={handleExportExcel} className="bg-green-600 text-white shadow-lg border border-green-700 px-4 py-3 rounded-full font-bold hover:bg-green-700 transition">
+             📊 Export Excel
            </button>
            <button onClick={saveOrder} disabled={saving} className="bg-indigo-600 text-white shadow-lg shadow-indigo-200 px-6 py-3 rounded-full font-bold hover:bg-indigo-700 disabled:bg-gray-400 transition">
              {saving ? "บันทึก..." : "💾 บันทึก Master Order"}

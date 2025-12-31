@@ -21,6 +21,7 @@ const NAV = [
   { to: "/admin/standings", label: "Admin Standings", icon: "📊" },
   { to: "/admin/knockout/bracket", label: "จัดสาย Knockout", icon: "🧩" },
   { to: "/admin/knockout/scoring", label: "กรอกคะแนน Knockout", icon: "🏆" },
+  { to: "/admin/shuttlecocks", label: "ค่าลูกแบด", icon: "🏸" },
   { to: "/admin/print-batch", label: "พิมพ์ใบคะแนน", icon: "🖨️" },
 ];
 

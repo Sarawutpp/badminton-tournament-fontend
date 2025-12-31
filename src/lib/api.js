@@ -26,7 +26,7 @@ function getActiveTournamentId() {
 async function request(path, opts = {}) {
   // 1. สร้าง URL Object เพื่อจัดการ Query Params ง่ายๆ
   const urlObj = new URL(`${API_BASE}${path}`);
-  
+
   // 2. [Auto-Inject] ใส่ tournamentId ลงใน Query Param เสมอ (สำหรับ GET)
   const activeTid = getActiveTournamentId();
   if (activeTid) {
@@ -35,22 +35,27 @@ async function request(path, opts = {}) {
 
   // 3. [Auto-Inject] ใส่ tournamentId ลงใน Body (สำหรับ POST/PUT)
   let options = { ...opts };
-  if (activeTid && options.body && typeof options.body === 'string') {
-     try {
-        const headers = options.headers || {};
-        const isJson = headers["Content-Type"] === "application/json" || 
-                       !headers["Content-Type"]; 
-        
-        if (isJson && options.method && ["POST", "PUT", "PATCH"].includes(options.method.toUpperCase())) {
-            const bodyObj = JSON.parse(options.body);
-            if (!bodyObj.tournamentId) {
-                bodyObj.tournamentId = activeTid;
-                options.body = JSON.stringify(bodyObj);
-            }
+  if (activeTid && options.body && typeof options.body === "string") {
+    try {
+      const headers = options.headers || {};
+      const isJson =
+        headers["Content-Type"] === "application/json" ||
+        !headers["Content-Type"];
+
+      if (
+        isJson &&
+        options.method &&
+        ["POST", "PUT", "PATCH"].includes(options.method.toUpperCase())
+      ) {
+        const bodyObj = JSON.parse(options.body);
+        if (!bodyObj.tournamentId) {
+          bodyObj.tournamentId = activeTid;
+          options.body = JSON.stringify(bodyObj);
         }
-     } catch (e) {
-        // ignore error
-     }
+      }
+    } catch (e) {
+      // ignore error
+    }
   }
 
   const res = await fetch(urlObj.toString(), {
@@ -84,25 +89,25 @@ export const API = {
   listTournaments: () => request("/tournaments"),
   getTournament: (id) => request(`/tournaments/${id}`),
 
-  createTournament: (data) => request("/tournaments", { 
-    method: "POST", 
-    body: JSON.stringify(data) 
-  }),
+  createTournament: (data) =>
+    request("/tournaments", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
 
   // ===== Teams =====
   listTeams: () => request("/teams"),
   listTeamsByHand: (hand) =>
     request(`/teams?handLevel=${encodeURIComponent(hand)}`),
-  
+
   createTeam: (data) =>
     request("/teams", { method: "POST", body: JSON.stringify(data) }),
-  
+
   updateTeam: (id, data) =>
     request(`/teams/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
-  deleteTeam: (id) =>
-    request(`/teams/${id}`, { method: "DELETE" }),
-  
+  deleteTeam: (id) => request(`/teams/${id}`, { method: "DELETE" }),
+
   updateTeamRanks: (updates) =>
     request("/teams/update-ranks", {
       method: "PUT",
@@ -126,24 +131,24 @@ export const API = {
 
   // ===== Players =====
   listPlayers: () => request("/players"),
-  
+
   createPlayer: (data) =>
     request("/players", { method: "POST", body: JSON.stringify(data) }),
 
   updatePlayer: (id, data) =>
     request(`/players/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
-  deletePlayer: (id) =>
-    request(`/players/${id}`, { method: "DELETE" }),
+  deletePlayer: (id) => request(`/players/${id}`, { method: "DELETE" }),
 
-  importPlayers: (playersData) => 
+  importPlayers: (playersData) =>
     request("/players/import", {
       method: "POST",
       body: JSON.stringify({ players: playersData }),
     }),
 
   // ===== Matches / Schedule =====
-  createMatch: (data) => request("/matches", { method: "POST", body: JSON.stringify(data) }),
+  createMatch: (data) =>
+    request("/matches", { method: "POST", body: JSON.stringify(data) }),
 
   listSchedule: ({
     page = 1,
@@ -265,7 +270,7 @@ export const API = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-    
+
   generateKnockoutAuto: (body) =>
     request("/matches/generate-knockout-auto", {
       method: "POST",
@@ -273,10 +278,12 @@ export const API = {
     }),
 
   // ===== Standings =====
-  getStandings: (hand) =>
-    request(
-      `/standings${hand ? `?handLevel=${encodeURIComponent(hand)}` : ""}`
-    ),
+  getStandings: (hand, tournamentId) => {
+    const qs = new URLSearchParams();
+    if (hand) qs.set("handLevel", hand);
+    if (tournamentId) qs.set("tournamentId", tournamentId);
+    return request(`/standings?${qs.toString()}`);
+  },
 
   clearStandings: ({ handLevel, resetMatches = true, tournamentId }) =>
     request("/standings/clear", {
@@ -287,9 +294,35 @@ export const API = {
         tournamentId,
       }),
     }),
-    
+
   recalculateStandings: ({ handLevel, tournamentId }) =>
     request("/standings/recalculate", {
+      method: "POST",
+      body: JSON.stringify({ handLevel, tournamentId }),
+    }),
+
+  updateTournament: (id, data) =>
+    request(`/tournaments/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  // 1. ดึงทีมวาง (Prepare Seeds)
+  prepareKnockoutSeeds: ({ handLevel, tournamentId }) =>
+    request("/matches/prepare-seeds", {
+      method: "POST",
+      body: JSON.stringify({ handLevel, tournamentId }),
+    }),
+
+  // 2. อัปเดตการจับคู่ (Manual Pairing) - เลือกคู่แข่ง
+  updateMatchPairing: (matchId, { team1Id, team2Id }) =>
+    request(`/matches/${matchId}/pairing`, {
+      method: "PATCH",
+      body: JSON.stringify({ team1Id, team2Id }),
+    }),
+
+  resetKnockoutMatches: ({ handLevel, tournamentId }) =>
+    request("/matches/reset-knockout", {
       method: "POST",
       body: JSON.stringify({ handLevel, tournamentId }),
     }),
@@ -315,7 +348,7 @@ export const API = {
             (a, b) =>
               (b.points ?? 0) - (a.points ?? 0) ||
               (b.scoreDiff ?? (b.scoreFor ?? 0) - (b.scoreAgainst ?? 0)) -
-              (a.scoreDiff ?? (a.scoreFor ?? 0) - (a.scoreAgainst ?? 0))
+                (a.scoreDiff ?? (a.scoreFor ?? 0) - (a.scoreAgainst ?? 0))
           );
         });
         return {

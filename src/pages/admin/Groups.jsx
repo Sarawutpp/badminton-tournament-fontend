@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { API } from "@/lib/api.js";
 import { HAND_LEVEL_OPTIONS } from "@/lib/types.js";
-import { useTournament } from "@/contexts/TournamentContext"; 
+import { useTournament } from "@/contexts/TournamentContext";
 
 // --- Constants & Styles ---
 const COLUMN = {
@@ -26,27 +26,30 @@ const scoreAt = (scores, index) => {
 
 function RankEditModal({ groupName, teams, onClose, onSave }) {
   const [ranks, setRanks] = useState(
-    teams.map(t => ({ 
+    teams.map((t) => ({
       id: t.teamId || t._id,
-      name: t.teamName, 
-      manualRank: t.manualRank || 0 
+      name: t.teamName,
+      manualRank: t.manualRank || 0,
     }))
   );
 
   const handleChange = (index, val) => {
     const numVal = val === "" ? 0 : parseInt(val, 10);
-    setRanks(prev => 
-      prev.map((r, i) => 
+    setRanks((prev) =>
+      prev.map((r, i) =>
         i === index ? { ...r, manualRank: isNaN(numVal) ? 0 : numVal } : r
       )
     );
   };
 
   const handleSave = () => {
-    const updates = ranks.map(r => ({ teamId: r.id, manualRank: r.manualRank }));
-    if (updates.some(u => !u.teamId)) {
-        alert("Error: Team ID is missing. Please check console.");
-        return;
+    const updates = ranks.map((r) => ({
+      teamId: r.id,
+      manualRank: r.manualRank,
+    }));
+    if (updates.some((u) => !u.teamId)) {
+      alert("Error: Team ID is missing. Please check console.");
+      return;
     }
     onSave(updates);
   };
@@ -55,28 +58,36 @@ function RankEditModal({ groupName, teams, onClose, onSave }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-white rounded-xl p-6 w-full max-w-md shadow-2xl transform transition-all scale-100">
         <div className="flex items-center gap-2 mb-2 text-amber-600">
-           <span className="text-xl">⚡</span>
-           <h3 className="text-lg font-bold text-slate-800">
-             จัดลำดับพิเศษ: กลุ่ม {groupName}
-           </h3>
+          <span className="text-xl">⚡</span>
+          <h3 className="text-lg font-bold text-slate-800">
+            จัดลำดับพิเศษ: กลุ่ม {groupName}
+          </h3>
         </div>
-        
+
         <p className="text-xs text-slate-500 mb-6 leading-relaxed">
-          ใช้กรณีคะแนนเท่ากัน (Dead Heat) หรือต้องจับสลาก <br/>
-          ใส่ตัวเลข <strong>1, 2, 3...</strong> เพื่อบังคับลำดับ (ใส่ 0 เพื่อยกเลิกและใช้การคำนวณปกติ)
+          ใช้กรณีคะแนนเท่ากัน (Dead Heat) หรือต้องจับสลาก <br />
+          ใส่ตัวเลข <strong>1, 2, 3...</strong> เพื่อบังคับลำดับ (ใส่ 0
+          เพื่อยกเลิกและใช้การคำนวณปกติ)
         </p>
-        
+
         <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
           {ranks.map((item, index) => (
-            <div key={index} className="flex items-center justify-between border border-slate-200 p-3 rounded-lg hover:bg-slate-50 transition-colors">
-              <span className="text-sm font-medium text-slate-700 truncate w-48" title={item.name}>
+            <div
+              key={index}
+              className="flex items-center justify-between border border-slate-200 p-3 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              <span
+                className="text-sm font-medium text-slate-700 truncate w-48"
+                title={item.name}
+              >
                 {index + 1}. {item.name}
               </span>
               <div className="flex items-center gap-2">
                 <label className="text-xs text-slate-400">บังคับเป็นที่:</label>
-                <input 
-                  type="number" 
-                  min="0" max="10" 
+                <input
+                  type="number"
+                  min="0"
+                  max="10"
                   className="w-16 border border-slate-300 rounded-md px-2 py-1 text-center text-sm font-bold text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                   value={item.manualRank || ""}
                   onChange={(e) => handleChange(index, e.target.value)}
@@ -88,14 +99,14 @@ function RankEditModal({ groupName, teams, onClose, onSave }) {
         </div>
 
         <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-100">
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
           >
             ยกเลิก
           </button>
-          <button 
-            onClick={handleSave} 
+          <button
+            onClick={handleSave}
             className="px-6 py-2 text-sm font-medium bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-colors"
           >
             บันทึกการจัดอันดับ
@@ -109,12 +120,12 @@ function RankEditModal({ groupName, teams, onClose, onSave }) {
 // --- Main Page ---
 
 export default function AdminGroupsPage() {
-  const { selectedTournament } = useTournament(); 
+  const { selectedTournament } = useTournament();
 
   const handOptions = useMemo(() => {
     const cats = selectedTournament?.settings?.categories || [];
     if (cats.length > 0) {
-      return cats.map(c => ({ value: c, label: c }));
+      return cats.map((c) => ({ value: c, label: c }));
     }
     return HAND_LEVEL_OPTIONS.map((opt) => ({
       value: opt.value,
@@ -122,21 +133,24 @@ export default function AdminGroupsPage() {
     }));
   }, [selectedTournament]);
 
-  const [hand, setHand] = useState(""); 
+  const [hand, setHand] = useState("");
   const [dataset, setDataset] = useState({ level: "", groups: [] });
   const [loading, setLoading] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [recalculating, setRecalculating] = useState(false);
   const [mocking, setMocking] = useState(false);
   const [error, setError] = useState("");
-  
+
   const [editingGroup, setEditingGroup] = useState(null);
 
   useEffect(() => {
     if (handOptions.length > 0 && !hand) {
-        setHand(handOptions[0].value);
-    } else if (handOptions.length > 0 && !handOptions.find(h => h.value === hand)) {
-        setHand(handOptions[0].value);
+      setHand(handOptions[0].value);
+    } else if (
+      handOptions.length > 0 &&
+      !handOptions.find((h) => h.value === hand)
+    ) {
+      setHand(handOptions[0].value);
     }
   }, [handOptions, hand]);
 
@@ -156,37 +170,42 @@ export default function AdminGroupsPage() {
   }, [hand]);
 
   useEffect(() => {
-    if(hand) load();
+    if (hand) load();
   }, [load, hand]);
 
   // ✅ [Dynamic] คำนวณจำนวนคอลัมน์ M1, M2... ตามจำนวนทีมที่มากที่สุดในกลุ่ม
   const matchCols = useMemo(() => {
     const groups = dataset?.groups || [];
     if (groups.length === 0) return [0, 1, 2]; // Default 3 columns
-    
+
     let maxTeamCount = 0;
-    groups.forEach(g => {
-        if (g.teams.length > maxTeamCount) maxTeamCount = g.teams.length;
+    groups.forEach((g) => {
+      if (g.teams.length > maxTeamCount) maxTeamCount = g.teams.length;
     });
-    
+
     // จำนวนแมตช์ = จำนวนทีม - 1 (แข่งพบกันหมด)
     // แต่ขั้นต่ำขอแสดง 3 ช่อง เพื่อความสวยงาม
-    const cols = Math.max(3, maxTeamCount - 1); 
-    
+    const cols = Math.max(3, maxTeamCount - 1);
+
     return Array.from({ length: cols }, (_, i) => i);
   }, [dataset]);
 
   const handleClear = useCallback(async () => {
     if (!hand) return;
-    if (!window.confirm(`ยืนยันการเคลียร์คะแนนของระดับมือ ${hand} หรือไม่?\nข้อมูลแมทช์จะถูกรีเซ็ตกลับเป็นรอแข่งทั้งหมด`)) return;
-    
+    if (
+      !window.confirm(
+        `ยืนยันการเคลียร์คะแนนของระดับมือ ${hand} หรือไม่?\nข้อมูลแมทช์จะถูกรีเซ็ตกลับเป็นรอแข่งทั้งหมด`
+      )
+    )
+      return;
+
     setClearing(true);
     setError("");
     try {
-      await API.clearStandings({ 
-        handLevel: hand, 
+      await API.clearStandings({
+        handLevel: hand,
         resetMatches: true,
-        tournamentId: selectedTournament?._id 
+        tournamentId: selectedTournament?._id,
       });
       await load();
     } catch (e) {
@@ -198,7 +217,12 @@ export default function AdminGroupsPage() {
 
   const handleRecalculate = useCallback(async () => {
     if (!hand) return;
-    if (!window.confirm(`ต้องการ "คำนวณคะแนนใหม่" (Re-sync) สำหรับรุ่น ${hand} ใช่ไหม?`)) return;
+    if (
+      !window.confirm(
+        `ต้องการ "คำนวณคะแนนใหม่" (Re-sync) สำหรับรุ่น ${hand} ใช่ไหม?`
+      )
+    )
+      return;
 
     setRecalculating(true);
     setError("");
@@ -219,14 +243,19 @@ export default function AdminGroupsPage() {
 
   const handleMock = useCallback(async () => {
     if (!hand) return;
-    if (!window.confirm(`⚠️ ยืนยันการ "จำลองคะแนน" (Mock) สำหรับรุ่น ${hand} ?\nระบบจะสุ่มคะแนนใส่เฉพาะแมตช์ที่ยังไม่แข่งเท่านั้น`)) return;
+    if (
+      !window.confirm(
+        `⚠️ ยืนยันการ "จำลองคะแนน" (Mock) สำหรับรุ่น ${hand} ?\nระบบจะสุ่มคะแนนใส่เฉพาะแมตช์ที่ยังไม่แข่งเท่านั้น`
+      )
+    )
+      return;
 
     setMocking(true);
     setError("");
     try {
-      await API.mockScores({ 
+      await API.mockScores({
         handLevel: hand,
-        tournamentId: selectedTournament?._id
+        tournamentId: selectedTournament?._id,
       });
       await load();
       alert(`🎲 Mock คะแนนสำหรับรุ่น ${hand} เรียบร้อย!`);
@@ -240,10 +269,10 @@ export default function AdminGroupsPage() {
 
   const handleSaveRanks = async (updates) => {
     try {
-      await API.updateTeamRanks(updates); 
+      await API.updateTeamRanks(updates);
       setEditingGroup(null);
       await load();
-    } catch(e) {
+    } catch (e) {
       alert("บันทึกไม่สำเร็จ: " + e.message);
     }
   };
@@ -253,7 +282,9 @@ export default function AdminGroupsPage() {
   return (
     <div className="px-6 py-6 pb-20">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-        <h2 className="text-2xl font-bold text-slate-800">ตารางคะแนน (Admin)</h2>
+        <h2 className="text-2xl font-bold text-slate-800">
+          ตารางคะแนน (Admin)
+        </h2>
         <div className="flex flex-wrap gap-2 items-center">
           <select
             className="border border-slate-300 rounded-lg px-3 py-2 bg-white text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none"
@@ -267,7 +298,7 @@ export default function AdminGroupsPage() {
               </option>
             ))}
           </select>
-          
+
           <button
             className="px-4 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 text-sm font-medium hover:bg-slate-50 disabled:opacity-50"
             onClick={load}
@@ -275,7 +306,7 @@ export default function AdminGroupsPage() {
           >
             {loading ? "..." : "Refresh"}
           </button>
-          
+
           <button
             className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-50 shadow-sm"
             onClick={handleRecalculate}
@@ -297,11 +328,7 @@ export default function AdminGroupsPage() {
             onClick={handleMock}
             disabled={loading || clearing || recalculating || mocking}
           >
-            {mocking ? (
-              <>⏳ กำลังสุ่ม...</>
-            ) : (
-              <>🎲 Mock คะแนน</>
-            )}
+            {mocking ? <>⏳ กำลังสุ่ม...</> : <>🎲 Mock คะแนน</>}
           </button>
         </div>
       </header>
@@ -313,10 +340,10 @@ export default function AdminGroupsPage() {
       )}
 
       {!hand && (
-         <div className="text-slate-400 text-center py-16 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-            <div className="text-4xl mb-2">👋</div>
-            กรุณาเลือกประเภทการแข่งขัน หรือสร้างประเภทการแข่งขันในเมนู Generator
-         </div>
+        <div className="text-slate-400 text-center py-16 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+          <div className="text-4xl mb-2">👋</div>
+          กรุณาเลือกประเภทการแข่งขัน หรือสร้างประเภทการแข่งขันในเมนู Generator
+        </div>
       )}
 
       {hand && groups.length === 0 ? (
@@ -333,13 +360,15 @@ export default function AdminGroupsPage() {
             >
               <div className="bg-slate-50 border-b px-4 py-3 flex justify-between items-center">
                 <div className="flex items-center gap-3">
-                   <span className="font-bold text-slate-800 text-lg">กลุ่ม {group.groupName}</span>
-                   <span className="text-xs px-2 py-0.5 bg-white border border-slate-200 rounded-full text-slate-500">
-                     {group.teams.length} ทีม
-                   </span>
+                  <span className="font-bold text-slate-800 text-lg">
+                    กลุ่ม {group.groupName}
+                  </span>
+                  <span className="text-xs px-2 py-0.5 bg-white border border-slate-200 rounded-full text-slate-500">
+                    {group.teams.length} ทีม
+                  </span>
                 </div>
-                
-                <button 
+
+                <button
                   onClick={() => setEditingGroup(group)}
                   className="text-xs flex items-center gap-1 bg-amber-50 text-amber-700 px-3 py-1.5 rounded-lg border border-amber-200 hover:bg-amber-100 hover:border-amber-300 transition-colors font-medium"
                 >
@@ -351,88 +380,211 @@ export default function AdminGroupsPage() {
                 <table className="min-w-full text-sm">
                   <thead className="bg-slate-100 text-slate-700 border-b">
                     <tr>
-                      <th rowSpan={2} className={COLUMN.thCenter}>อันดับ</th>
-                      <th rowSpan={2} className={COLUMN.thLeft}>ทีม</th>
-                      <th rowSpan={2} className={COLUMN.thCenter}>Manual</th>
-                      
+                      <th rowSpan={2} className={COLUMN.thCenter}>
+                        อันดับ
+                      </th>
+                      <th rowSpan={2} className={COLUMN.thLeft}>
+                        ทีม
+                      </th>
+                      <th rowSpan={2} className={COLUMN.thCenter}>
+                        Manual
+                      </th>
+
                       {/* ✅ [Dynamic] วนลูปสร้าง Header M1, M2... ตาม matchCols */}
                       {matchCols.map((colIndex, i) => (
-                        <th 
-                            key={colIndex} 
-                            rowSpan={2} 
-                            className={COLUMN.thCenter + (i === 0 ? " border-l" : "") + (i === matchCols.length - 1 ? " border-r" : "")}
+                        <th
+                          key={colIndex}
+                          rowSpan={2}
+                          className={
+                            COLUMN.thCenter +
+                            (i === 0 ? " border-l" : "") +
+                            (i === matchCols.length - 1 ? " border-r" : "")
+                          }
                         >
-                            M{colIndex + 1}
+                          M{colIndex + 1}
                         </th>
                       ))}
 
-                      <th rowSpan={2} className={COLUMN.thCenter}>แข่ง</th>
-                      <th rowSpan={2} className={COLUMN.thCenter}>ชนะ</th>
-                      <th rowSpan={2} className={COLUMN.thCenter}>แพ้</th>
-                      <th rowSpan={2} className={COLUMN.thCenter + " bg-indigo-50 text-indigo-700 border-l border-r"}>
+                      <th rowSpan={2} className={COLUMN.thCenter}>
+                        แข่ง
+                      </th>
+                      <th rowSpan={2} className={COLUMN.thCenter}>
+                        ชนะ
+                      </th>
+                      <th rowSpan={2} className={COLUMN.thCenter}>
+                        เสมอ
+                      </th>
+                      <th rowSpan={2} className={COLUMN.thCenter}>
+                        แพ้
+                      </th>
+                      <th
+                        rowSpan={2}
+                        className={
+                          COLUMN.thCenter +
+                          " bg-indigo-50 text-indigo-700 border-l border-r"
+                        }
+                      >
                         คะแนน
                       </th>
-                      <th colSpan={3} className={COLUMN.thCenter + " border-r"}>แต้ม</th>
-                      <th colSpan={3} className={COLUMN.thCenter}>เซ็ต</th>
+                      <th colSpan={3} className={COLUMN.thCenter + " border-r"}>
+                        แต้ม
+                      </th>
+                      <th colSpan={3} className={COLUMN.thCenter}>
+                        เซ็ต
+                      </th>
                     </tr>
                     <tr className="border-t border-slate-200">
-                      <th className={COLUMN.thCenter + " text-xs text-slate-500"}>ได้</th>
-                      <th className={COLUMN.thCenter + " text-xs text-slate-500"}>เสีย</th>
-                      <th className={COLUMN.thCenter + " text-xs text-slate-500 border-r"}>ผลต่าง</th>
-                      <th className={COLUMN.thCenter + " text-xs text-slate-500"}>ได้</th>
-                      <th className={COLUMN.thCenter + " text-xs text-slate-500"}>เสีย</th>
-                      <th className={COLUMN.thCenter + " text-xs text-slate-500"}>ผลต่าง</th>
+                      <th
+                        className={COLUMN.thCenter + " text-xs text-slate-500"}
+                      >
+                        ได้
+                      </th>
+                      <th
+                        className={COLUMN.thCenter + " text-xs text-slate-500"}
+                      >
+                        เสีย
+                      </th>
+                      <th
+                        className={
+                          COLUMN.thCenter + " text-xs text-slate-500 border-r"
+                        }
+                      >
+                        ผลต่าง
+                      </th>
+                      <th
+                        className={COLUMN.thCenter + " text-xs text-slate-500"}
+                      >
+                        ได้
+                      </th>
+                      <th
+                        className={COLUMN.thCenter + " text-xs text-slate-500"}
+                      >
+                        เสีย
+                      </th>
+                      <th
+                        className={COLUMN.thCenter + " text-xs text-slate-500"}
+                      >
+                        ผลต่าง
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {group.teams.map((team, index) => (
-                      <tr key={team.teamId || team._id} className="border-b last:border-0 hover:bg-slate-50 transition-colors">
-                        <td className={COLUMN.tdCenter + " font-bold text-slate-700"}>{index + 1}</td>
-                        
-                        <td className={COLUMN.tdTeam + " text-slate-900 min-w-[200px]"}>
+                      <tr
+                        key={team.teamId || team._id}
+                        className="border-b last:border-0 hover:bg-slate-50 transition-colors"
+                      >
+                        <td
+                          className={
+                            COLUMN.tdCenter + " font-bold text-slate-700"
+                          }
+                        >
+                          {index + 1}
+                        </td>
+
+                        <td
+                          className={
+                            COLUMN.tdTeam + " text-slate-900 min-w-[200px]"
+                          }
+                        >
                           {team.teamName}
                           <div className="text-xs text-slate-500 font-normal mt-0.5">
-                             {team.players?.map(p => p.nickname || p.fullName).join(" / ")}
+                            {team.players
+                              ?.map((p) => p.nickname || p.fullName)
+                              .join(" / ")}
                           </div>
                         </td>
 
                         <td className={COLUMN.tdCenter}>
-                           {team.manualRank > 0 ? (
-                             <span className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold border border-amber-200" title={`Force Rank: ${team.manualRank}`}>
-                               {team.manualRank}
-                             </span>
-                           ) : (
-                             <span className="text-slate-300">-</span>
-                           )}
+                          {team.manualRank > 0 ? (
+                            <span
+                              className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-xs font-bold border border-amber-200"
+                              title={`Force Rank: ${team.manualRank}`}
+                            >
+                              {team.manualRank}
+                            </span>
+                          ) : (
+                            <span className="text-slate-300">-</span>
+                          )}
                         </td>
-                        
+
                         {/* ✅ [Dynamic] วนลูปสร้างช่องคะแนนตาม matchCols */}
                         {matchCols.map((colIndex, i) => (
-                            <td 
-                                key={colIndex} 
-                                className={COLUMN.tdCenter + " text-xs " + (i === 0 ? "border-l bg-slate-50/50" : (i === matchCols.length-1 ? "border-r bg-slate-50/50" : "bg-slate-50/50"))}
-                            >
-                                {scoreAt(team.matchScores, colIndex)}
-                            </td>
+                          <td
+                            key={colIndex}
+                            className={
+                              COLUMN.tdCenter +
+                              " text-xs " +
+                              (i === 0
+                                ? "border-l bg-slate-50/50"
+                                : i === matchCols.length - 1
+                                ? "border-r bg-slate-50/50"
+                                : "bg-slate-50/50")
+                            }
+                          >
+                            {scoreAt(team.matchScores, colIndex)}
+                          </td>
                         ))}
 
-                        <td className={COLUMN.tdCenter}>{team.matchesPlayed ?? 0}</td>
-                        <td className={COLUMN.tdCenter + " text-emerald-600 font-medium"}>{team.wins ?? 0}</td>
-                        <td className={COLUMN.tdCenter + " text-rose-500"}>{team.losses ?? 0}</td>
-                        
-                        <td className={COLUMN.tdPoints + " bg-indigo-50 text-indigo-700 border-l border-r text-lg"}>
+                        <td className={COLUMN.tdCenter}>
+                          {team.matchesPlayed ?? 0}
+                        </td>
+                        <td
+                          className={
+                            COLUMN.tdCenter + " text-emerald-600 font-medium"
+                          }
+                        >
+                          {team.wins ?? 0}
+                        </td>
+                        <td className={COLUMN.tdCenter + " text-amber-500"}>
+                          {team.draws ?? 0}
+                        </td>
+                        <td className={COLUMN.tdCenter + " text-rose-500"}>
+                          {team.losses ?? 0}
+                        </td>
+
+                        <td
+                          className={
+                            COLUMN.tdPoints +
+                            " bg-indigo-50 text-indigo-700 border-l border-r text-lg"
+                          }
+                        >
                           {team.points ?? 0}
                         </td>
-                        
-                        <td className={COLUMN.tdCenter + " text-slate-600"}>{team.scoreFor ?? 0}</td>
-                        <td className={COLUMN.tdCenter + " text-slate-600"}>{team.scoreAgainst ?? 0}</td>
-                        <td className={COLUMN.tdCenter + " font-medium border-r " + ((team.scoreDiff ?? 0) > 0 ? "text-emerald-600" : "text-slate-500")}>
+
+                        <td className={COLUMN.tdCenter + " text-slate-600"}>
+                          {team.scoreFor ?? 0}
+                        </td>
+                        <td className={COLUMN.tdCenter + " text-slate-600"}>
+                          {team.scoreAgainst ?? 0}
+                        </td>
+                        <td
+                          className={
+                            COLUMN.tdCenter +
+                            " font-medium border-r " +
+                            ((team.scoreDiff ?? 0) > 0
+                              ? "text-emerald-600"
+                              : "text-slate-500")
+                          }
+                        >
                           {team.scoreDiff ?? 0}
                         </td>
-                        
-                        <td className={COLUMN.tdCenter + " text-slate-600"}>{team.setsFor ?? 0}</td>
-                        <td className={COLUMN.tdCenter + " text-slate-600"}>{team.setsAgainst ?? 0}</td>
-                        <td className={COLUMN.tdCenter + " font-medium " + ((team.setsDiff ?? 0) > 0 ? "text-emerald-600" : "text-slate-500")}>
+
+                        <td className={COLUMN.tdCenter + " text-slate-600"}>
+                          {team.setsFor ?? 0}
+                        </td>
+                        <td className={COLUMN.tdCenter + " text-slate-600"}>
+                          {team.setsAgainst ?? 0}
+                        </td>
+                        <td
+                          className={
+                            COLUMN.tdCenter +
+                            " font-medium " +
+                            ((team.setsDiff ?? 0) > 0
+                              ? "text-emerald-600"
+                              : "text-slate-500")
+                          }
+                        >
                           {team.setsDiff ?? 0}
                         </td>
                       </tr>
@@ -446,10 +598,10 @@ export default function AdminGroupsPage() {
       )}
 
       {editingGroup && (
-        <RankEditModal 
-          groupName={editingGroup.groupName} 
-          teams={editingGroup.teams} 
-          onClose={() => setEditingGroup(null)} 
+        <RankEditModal
+          groupName={editingGroup.groupName}
+          teams={editingGroup.teams}
+          onClose={() => setEditingGroup(null)}
           onSave={handleSaveRanks}
         />
       )}

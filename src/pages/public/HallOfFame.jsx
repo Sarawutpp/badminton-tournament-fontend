@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import axios from "axios";
 import { useTournament } from "@/contexts/TournamentContext";
+import html2canvas from "html2canvas";
 
 const DEFAULT_AVATAR = "https://cdn-icons-png.flaticon.com/512/2674/2674067.png";
-const BACKEND_URL =import.meta.env.VITE_API_BASE_URL;
+const BACKEND_URL = import.meta.env.VITE_API_BASE_URL;
 
-// --- BACKGROUND PATTERN: ลายเส้นไก่ (Chicken Doodle SVG) ---
 const CHICKEN_PATTERN = `data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23d4c5b4' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E`;
 
 export default function HallOfFame() {
@@ -13,6 +13,12 @@ export default function HallOfFame() {
   const [data, setData] = useState({});
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("");
+  
+  // State สำหรับเช็คว่ากำลัง Export อยู่หรือไม่
+  const [isExporting, setIsExporting] = useState(false);
+  
+  // Ref สำหรับจับภาพทั้งหน้าจอ
+  const printRef = useRef(null);
 
   useEffect(() => {
     if (!selectedTournament?._id) return;
@@ -45,19 +51,54 @@ export default function HallOfFame() {
     return `${BACKEND_URL}${url}`;
   };
 
+  // --- ฟังก์ชัน Save Image ---
+  const handleSaveImage = async () => {
+    if (!printRef.current) return;
+    
+    setIsExporting(true); // 1. เริ่มสถานะ Export (เพื่อเปลี่ยน Style)
+    
+    // รอ 100ms ให้ React Re-render CSS ให้เสร็จก่อนจับภาพ
+    setTimeout(async () => {
+        try {
+            const canvas = await html2canvas(printRef.current, {
+                scale: 2, 
+                useCORS: true, 
+                backgroundColor: "#FFFBF2", 
+                logging: false,
+                windowWidth: printRef.current.scrollWidth,
+                windowHeight: printRef.current.scrollHeight
+            });
+
+            const image = canvas.toDataURL("image/png", 1.0);
+            const link = document.createElement("a");
+            link.href = image;
+            link.download = `HallOfFame-${selectedTournament?.name || "Event"}-${activeTab}.png`;
+            link.click();
+
+        } catch (error) {
+            console.error("Export Error:", error);
+            alert("บันทึกรูปไม่สำเร็จ (อาจติด Permission ของรูปโปรไฟล์)");
+        } finally {
+            setIsExporting(false); // 2. คืนค่าสถานะกลับเป็นปกติ
+        }
+    }, 100);
+  };
+
   if (loading) return <LoadingScreen />;
   if (!loading && availableLevels.length === 0) return <EmptyScreen />;
 
   return (
-    <div className="min-h-screen bg-[#FFFBF2] text-slate-800 selection:bg-orange-200 selection:text-orange-900 overflow-hidden relative font-cute">
-      
-      {/* 1. Background Pattern */}
+    <div 
+      ref={printRef}
+      className="min-h-screen bg-[#FFFBF2] text-slate-800 selection:bg-orange-200 selection:text-orange-900 overflow-hidden relative font-cute"
+    >
+      {/* Background Pattern */}
       <div 
         className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none opacity-60"
         style={{ backgroundImage: `url("${CHICKEN_PATTERN}")`, backgroundSize: '60px 60px' }}
       ></div>
       
-      {/* 2. Abstract Warm Blobs */}
+      {/* Abstract Blobs */}
       <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0 mix-blend-multiply">
          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-yellow-200/40 rounded-full blur-[120px]"></div>
          <div className="absolute top-[40%] -right-[10%] w-[40%] h-[60%] bg-orange-200/40 rounded-full blur-[100px]"></div>
@@ -85,10 +126,20 @@ export default function HallOfFame() {
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-             {/* CHANGE 1: ลบปุ่ม Admin ออกไปแล้ว */}
+          {/* ปุ่มควบคุม (ซ่อนตอน Export) */}
+          <div 
+             className={`flex flex-wrap items-center gap-3 transition-opacity duration-200 ${isExporting ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}
+             data-html2canvas-ignore={isExporting ? "true" : "false"} 
+          >
+             <button 
+                onClick={handleSaveImage}
+                disabled={isExporting}
+                className="group flex items-center gap-2 px-5 py-2 rounded-full bg-white border border-orange-200 shadow-sm hover:shadow-md hover:border-orange-300 text-orange-600 font-bold text-sm transition-all active:scale-95"
+             >
+                <span className="text-lg group-hover:rotate-12 transition-transform">📸</span>
+                <span>{isExporting ? "Capturing..." : "Save Image"}</span>
+             </button>
 
-             {/* Tab Selection */}
              {availableLevels.length > 0 && (
                 <div className="flex gap-2 p-1 bg-white/60 backdrop-blur-sm rounded-full border border-orange-100/50 shadow-sm">
                   {availableLevels.map(level => (
@@ -113,21 +164,30 @@ export default function HallOfFame() {
         <div className="mt-8 space-y-24">
           <PodiumSection 
             title="Super Chicken Of Year" 
-            subtitle="ไก่หัดเดิน · สายบน"
+            subtitle={`ไก่หัดเดิน · ${activeTab}`} 
             teams={currentData.upper} 
             getTeamPhoto={getTeamPhoto}
             theme="gold"
+            isExporting={isExporting} // ส่ง isExporting ลงไป
           />
 
           {currentData.lower && currentData.lower.length > 0 && (
              <PodiumSection 
                 title="RISING CHICKS" 
-                subtitle="ไก่หัดเดิน · สายล่าง"
+                subtitle={`ไก่หัดเดิน (สายล่าง) · ${activeTab}`}
                 teams={currentData.lower} 
                 getTeamPhoto={getTeamPhoto}
                 theme="silver"
+                isExporting={isExporting} // ส่ง isExporting ลงไป
              />
           )}
+
+           {/* Footer Credit (แสดงเฉพาะตอน Export ก็ได้) */}
+           {isExporting && (
+             <div className="absolute bottom-2 left-0 w-full text-center text-slate-400 text-xs font-bold opacity-50">
+               Generated by KATAK RANKING SYSTEM
+             </div>
+           )}
         </div>
       </div>
     </div>
@@ -135,7 +195,7 @@ export default function HallOfFame() {
 }
 
 // --- PODIUM LAYOUT ---
-function PodiumSection({ title, subtitle, teams, getTeamPhoto, theme }) {
+function PodiumSection({ title, subtitle, teams, getTeamPhoto, theme, isExporting }) {
   if (!teams || teams.length === 0) return null;
 
   const champion = teams.find(t => t.rank === 1);
@@ -144,17 +204,19 @@ function PodiumSection({ title, subtitle, teams, getTeamPhoto, theme }) {
 
   const isGold = theme === "gold";
   
-  const gradientTitle = isGold 
-    ? "from-orange-600 via-yellow-500 to-orange-400"  
-    : "from-slate-600 via-slate-400 to-slate-500";
-    
+  // FIX: html2canvas ไม่รองรับ background-clip: text 
+  // ถ้า export อยู่ ให้ใช้สีทึบแทน
+  const titleClass = isExporting 
+    ? (isGold ? "text-orange-600" : "text-slate-600") 
+    : `text-transparent bg-clip-text bg-gradient-to-b ${isGold ? "from-orange-600 via-yellow-500 to-orange-400" : "from-slate-600 via-slate-400 to-slate-500"}`;
+
   const accentColor = isGold ? "text-orange-500" : "text-slate-400";
   const lineColor = isGold ? "bg-orange-300" : "bg-slate-300";
 
   return (
     <div className="relative">
       <div className="text-center mb-16 relative z-0">
-         <h2 className={`text-5xl md:text-7xl font-bold tracking-tighter text-transparent bg-clip-text bg-gradient-to-b ${gradientTitle} drop-shadow-[0_2px_2px_rgba(255,255,255,1)]`}>
+         <h2 className={`text-5xl md:text-7xl font-bold tracking-tighter ${titleClass} drop-shadow-[0_2px_2px_rgba(255,255,255,1)]`}>
             {title}
          </h2>
          <div className="flex items-center justify-center gap-4 mt-2">
@@ -166,7 +228,7 @@ function PodiumSection({ title, subtitle, teams, getTeamPhoto, theme }) {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-end max-w-5xl mx-auto relative z-10">
         
-        {/* RUNNER UP (Left/2nd) */}
+        {/* RUNNER UP */}
         <div className="order-2 md:order-1 flex flex-col items-center md:mb-12">
             {runnerUp && (
                <TeamCard 
@@ -175,11 +237,12 @@ function PodiumSection({ title, subtitle, teams, getTeamPhoto, theme }) {
                   getTeamPhoto={getTeamPhoto} 
                   theme={theme}
                   delay="delay-100"
+                  isExporting={isExporting}
                />
             )}
         </div>
 
-        {/* CHAMPION (Center/1st) */}
+        {/* CHAMPION */}
         <div className="order-1 md:order-2 flex flex-col items-center -mt-4 md:-mt-16 z-20">
             {champion && (
                <TeamCard 
@@ -188,11 +251,12 @@ function PodiumSection({ title, subtitle, teams, getTeamPhoto, theme }) {
                   getTeamPhoto={getTeamPhoto} 
                   theme={theme}
                   isChampion={true}
+                  isExporting={isExporting}
                />
             )}
         </div>
 
-        {/* SEMI FINALISTS (Right/3rd) */}
+        {/* SEMI FINALISTS */}
         <div className="order-3 flex flex-col gap-5 w-full z-10 md:mb-12">
            {semiFinalists.map((team, idx) => (
               <TeamCard 
@@ -203,6 +267,7 @@ function PodiumSection({ title, subtitle, teams, getTeamPhoto, theme }) {
                  theme={theme}
                  delay={`delay-${(idx+2)*100}`}
                  isCompact
+                 isExporting={isExporting}
               />
            ))}
         </div>
@@ -212,7 +277,7 @@ function PodiumSection({ title, subtitle, teams, getTeamPhoto, theme }) {
 }
 
 // --- TEAM CARD ---
-function TeamCard({ rank, data, getTeamPhoto, theme, isChampion = false, isCompact = false, delay = "" }) {
+function TeamCard({ rank, data, getTeamPhoto, theme, isChampion = false, isCompact = false, delay = "", isExporting }) {
    
    const rankConfig = {
       1: { 
@@ -238,13 +303,12 @@ function TeamCard({ rank, data, getTeamPhoto, theme, isChampion = false, isCompa
       },
    }[rank];
 
-   // --- Compact Card (แก้ไขเรื่องชื่อตก) ---
+   // --- Compact Card ---
    if (isCompact) {
       return (
          <div className={`w-full bg-white rounded-2xl p-4 flex items-center gap-4 hover:scale-105 transition-all duration-300 cursor-default group animate-in slide-in-from-bottom-4 
             border-2 ${rankConfig.containerBorder} ${rankConfig.containerShadow} hover:shadow-lg hover:border-orange-400 relative overflow-hidden ${delay}`}>
             
-            {/* เลขพื้นหลัง */}
             <div className={`absolute right-4 top-1/2 -translate-y-1/2 text-5xl font-bold ${rankConfig.BgNumberColor} opacity-[0.12] pointer-events-none select-none`}>
                #{rank}
             </div>
@@ -254,7 +318,6 @@ function TeamCard({ rank, data, getTeamPhoto, theme, isChampion = false, isCompa
             </div>
             
             <div className="min-w-0 flex-1 relative z-10">
-               {/* CHANGE 2: ปรับ text-lg เป็น text-base และใช้ line-clamp-2 แทน truncate */}
                <div className="text-slate-800 text-base font-bold line-clamp-2 leading-tight group-hover:text-orange-600 transition-colors">{data.teamName}</div>
                <div className="text-sm text-slate-500 font-bold truncate">{data.players.join(" / ")}</div>
             </div>
@@ -307,7 +370,9 @@ function TeamCard({ rank, data, getTeamPhoto, theme, isChampion = false, isCompa
                      </span>
                   ))}
                </div>
-               {isChampion && (
+               
+               {/* FIX: ซ่อนปุ่ม View Full Stats ตอน Export */}
+               {isChampion && !isExporting && (
                   <button className="mt-6 text-sm font-bold text-white bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-500 hover:to-orange-600 px-8 py-3 rounded-full transition-all shadow-md hover:shadow-lg shadow-orange-200 transform hover:scale-105 active:scale-95">
                      VIEW FULL STATS 
                   </button>

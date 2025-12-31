@@ -29,6 +29,70 @@ function handShort(level) {
   return opt?.labelShort || opt?.label || level || "-";
 }
 
+// ----------------- Components -----------------
+
+function ShuttleSelectorModal({ isOpen, onClose, onConfirm, loading }) {
+  if (!isOpen) return null;
+
+  const options = [1, 2, 3, 4, 5]; // ตัวเลือกจำนวนลูก
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100">
+        
+        {/* Header */}
+        <div className="bg-slate-900 px-6 py-4 text-center">
+          <h3 className="text-white text-lg font-bold">🏸 จำนวนลูกแบดที่ใช้?</h3>
+          <p className="text-slate-400 text-xs mt-1">
+            ระบุจำนวนลูกเพื่อคำนวณคูปอง (หารคนละครึ่ง)
+          </p>
+        </div>
+
+        {/* Body: Buttons Grid */}
+        <div className="p-6">
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            {options.map((num) => (
+              <button
+                key={num}
+                onClick={() => onConfirm(num)}
+                disabled={loading}
+                className="aspect-square rounded-2xl bg-slate-50 border-2 border-slate-100 text-2xl font-bold text-slate-700 hover:border-indigo-500 hover:bg-indigo-50 hover:text-indigo-600 active:scale-95 transition-all flex items-center justify-center shadow-sm"
+              >
+                {num}
+              </button>
+            ))}
+             {/* ปุ่ม 0 หรือ Custom */}
+             <button
+                onClick={() => onConfirm(0)}
+                disabled={loading}
+                className="aspect-square rounded-2xl bg-slate-50 border-2 border-slate-100 text-sm font-semibold text-slate-400 hover:border-slate-300 hover:text-slate-600 transition-all flex flex-col items-center justify-center"
+              >
+                <span>ไม่ใช้</span>
+                <span className="text-[10px]">(0)</span>
+              </button>
+          </div>
+
+          {/* Cancel Button */}
+          <button
+            onClick={onClose}
+            disabled={loading}
+            className="w-full py-3 rounded-xl border border-slate-200 text-slate-500 font-semibold hover:bg-slate-50 transition-colors"
+          >
+            ยกเลิก
+          </button>
+        </div>
+        
+        {/* Loading Overlay */}
+        {loading && (
+          <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+            <span className="text-indigo-600 font-bold animate-pulse">กำลังบันทึก...</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ----------------- Main Page -----------------
 export default function AdminMatchScoringPage() {
   const { selectedTournament } = useTournament();
@@ -43,7 +107,7 @@ export default function AdminMatchScoringPage() {
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // [NEW] State สำหรับจัดการ Tab (pending = รอแข่ง/กรอกผล, finished = จบแล้ว)
+  // State สำหรับจัดการ Tab
   const [activeTab, setActiveTab] = useState("pending");
 
   const [filters, setFilters] = useState({
@@ -51,7 +115,6 @@ export default function AdminMatchScoringPage() {
     group: "",
     q: "",
     roundType: "",
-    // onlyFinished: false, // [REMOVED] เอาออก เพราะเราใช้ Tab แทนแล้ว
   });
 
   const [page, setPage] = useState(1);
@@ -68,15 +131,9 @@ export default function AdminMatchScoringPage() {
         group: filters.group || undefined,
         q: filters.q || undefined,
         roundType: filters.roundType || undefined,
-        // เราโหลดข้อมูลมาทั้งหมด (หรือตามฟิลเตอร์อื่น) แล้วมาแยก Tab ที่หน้าบ้าน
-        // หาก API รองรับการ sort status=pending ขึ้นก่อน จะดียิ่งขึ้น
       });
 
-      const items = Array.isArray(res?.items)
-        ? res.items
-        : Array.isArray(res)
-          ? res
-          : [];
+      const items = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
       setRows(items);
       setTotal(Number(res?.total ?? items.length));
       setPage(Number(res?.page ?? p));
@@ -95,15 +152,11 @@ export default function AdminMatchScoringPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // [NEW] Logic แยกข้อมูลตาม Tab
-  // กรอง rows ที่โหลดมา เพื่อแสดงให้ตรงกับ Tab ที่เลือก
   const displayedRows = rows.filter((r) => {
-    const isFinished = hasScore(r); // เช็คว่ามีคะแนนหรือยัง
+    const isFinished = hasScore(r);
     if (activeTab === "pending") {
-      // Tab Pending: แสดงเฉพาะที่ "ยังไม่มีผล" (รวมถึงแมตช์ที่รอแข่ง หรือกำลังแข่ง)
       return !isFinished;
     } else {
-      // Tab Finished: แสดงเฉพาะที่ "มีผลแล้ว"
       return isFinished;
     }
   });
@@ -187,8 +240,6 @@ export default function AdminMatchScoringPage() {
           </div>
         </div>
         <div className="flex flex-col md:flex-row items-center justify-end gap-3 text-xs md:text-sm text-slate-600">
-          {/* [REMOVED] Checkbox 'เฉพาะแมตช์ จบแล้ว' ออกไปแล้ว */}
-          
           <div className="flex gap-2 w-full md:w-auto">
             <button
               className="flex-1 md:flex-none px-3 py-2 md:py-1 border rounded-full text-xs md:text-sm hover:bg-slate-50"
@@ -219,7 +270,7 @@ export default function AdminMatchScoringPage() {
         <div className="p-3 bg-red-50 text-sm text-red-600 rounded">{err}</div>
       )}
 
-      {/* [NEW] Tabs Selector */}
+      {/* Tabs Selector */}
       <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-lg w-full md:w-fit">
         <button
           onClick={() => setActiveTab("pending")}
@@ -344,13 +395,13 @@ export default function AdminMatchScoringPage() {
 // =========================================================================
 
 /**
- * Shared Logic for Scoring (FIXED)
+ * Shared Logic for Scoring
  */
 function useMatchScoring(m, loadData, configMaxScore) {
   const isKO = m.roundType === "knockout";
   const isGroup = !isKO;
 
-  // [FIX] คำนวณ maxSets ตามกติกาจริงของแมตช์นั้น
+  // คำนวณ maxSets ตามกติกาจริงของแมตช์นั้น
   const gamesToWin = m.gamesToWin || 2;
   let maxSets = 3; // Default (BO3)
 
@@ -367,10 +418,11 @@ function useMatchScoring(m, loadData, configMaxScore) {
     m.status === "finished" && !alreadyHasScore
   );
   const [saving, setSaving] = useState(false);
-  const [localErr, setLocalErr] = useState("");
+  
+  // [NEW] State Control Modal
+  const [showShuttleModal, setShowShuttleModal] = useState(false);
 
   const [localSets, setLocalSets] = useState(() => {
-    // เตรียม array 3 ช่องเสมอ แต่จะโชว์กี่ช่องขึ้นอยู่กับ maxSets
     const s =
       m.sets?.map((set) => ({ t1: set.t1 || 0, t2: set.t2 || 0 })) || [];
     while (s.length < 3) s.push({ t1: 0, t2: 0 });
@@ -383,66 +435,67 @@ function useMatchScoring(m, loadData, configMaxScore) {
     let v = parseInt(value, 10);
     if (Number.isNaN(v)) v = 0;
     if (v < 0) v = 0;
-    // Limit Max Score
-    // if (v > maxScore) return; // (Optional: ถ้าจะบังคับ)
-
+    
     const arr = [...localSets];
     arr[index] = { ...arr[index], [team]: v };
     setLocalSets(arr);
   }
 
-  // [FIX] Sync localSets when props m changes (e.g. re-fetch data)
+  // Sync localSets when props m changes
   useEffect(() => {
     let s = m.sets?.map((set) => ({ t1: set.t1 || 0, t2: set.t2 || 0 })) || [];
-    // Ensure at least 3 sets for UI
     while (s.length < 3) s.push({ t1: 0, t2: 0 });
     setLocalSets(s);
     
-    // Update editing state if status changed externally
     const hasScore = (m.sets && m.sets.length > 0) || (m.score1 > 0 || m.score2 > 0);
     if (m.status === "finished" && !hasScore) {
        setIsEditing(true);
     }
   }, [m]);
 
-  async function save() {
-    setSaving(true);
-    setLocalErr("");
-    try {
-      // Logic Validation
-      for (let i = 0; i < maxSets; i++) {
-        const s = localSets[i];
-        // const t1 = s.t1 || 0;
-        // const t2 = s.t2 || 0;
-      }
-
-      // [FIX] Check !isNaN instead of > 0 to allow score 0 (e.g. 21-0)
-      const payloadSets = localSets
+  // [NEW] 1. Trigger: กดปุ่มบันทึก -> ตรวจสอบข้อมูลเบื้องต้น -> เปิด Modal
+  function triggerSave() {
+    // Check Validation
+    const payloadSets = localSets
         .slice(0, maxSets)
         .filter((s) => {
-           // Must have at least one side with a number (0 is allowed)
-           // But actually we usually want to filter out "empty" rows.
-           // If UI forces 0, then 0-0 might be sent.
-           // Let's filter out if BOTH are null/undefined/NaN, otherwise keep 0.
            const t1 = parseInt(s.t1);
            const t2 = parseInt(s.t2);
            return !isNaN(t1) && !isNaN(t2); 
         });
 
-      if (payloadSets.length === 0) {
-        throw new Error("กรุณากรอกคะแนนอย่างน้อย 1 เซ็ต");
-      }
+    if (payloadSets.length === 0) {
+      alert("กรุณากรอกคะแนนอย่างน้อย 1 เซ็ต");
+      return;
+    }
+    
+    // เปิด Modal ถามจำนวนลูกแบด
+    setShowShuttleModal(true);
+  }
+
+  // [NEW] 2. Confirm: กดเลือกจำนวนลูก -> บันทึก API จริง
+  async function confirmSave(shuttleCount) {
+    setSaving(true);
+    try {
+      const payloadSets = localSets
+        .slice(0, maxSets)
+        .filter((s) => {
+           const t1 = parseInt(s.t1);
+           const t2 = parseInt(s.t2);
+           return !isNaN(t1) && !isNaN(t2); 
+        });
 
       await API.updateScore(m._id, {
         sets: payloadSets,
         status: "finished",
+        shuttlecockUsed: shuttleCount, // ส่งค่าลูกไปด้วย
       });
 
       setIsEditing(false);
+      setShowShuttleModal(false); // ปิด Modal
       await loadData();
     } catch (e) {
       alert(e.message || "บันทึกไม่สำเร็จ");
-      setLocalErr(e.message);
     } finally {
       setSaving(false);
     }
@@ -450,8 +503,7 @@ function useMatchScoring(m, loadData, configMaxScore) {
 
   function cancel() {
     setIsEditing(false);
-    setLocalErr("");
-    // Revert
+    setShowShuttleModal(false);
     const s =
       m.sets?.map((set) => ({ t1: set.t1 || 0, t2: set.t2 || 0 })) || [];
     while (s.length < 3) s.push({ t1: 0, t2: 0 });
@@ -467,7 +519,10 @@ function useMatchScoring(m, loadData, configMaxScore) {
     canEdit,
     localSets,
     updateSetScore,
-    save,
+    triggerSave, // ใช้แทน save เดิม
+    confirmSave, // ใช้ใน Modal
+    showShuttleModal, // State Modal
+    setShowShuttleModal,
     cancel,
     alreadyHasScore,
     saving,
@@ -485,7 +540,10 @@ function MatchScoreCardMobile({ m, loadData, configMaxScore }) {
     canEdit,
     localSets,
     updateSetScore,
-    save,
+    triggerSave, // [CHANGE]
+    confirmSave, // [NEW]
+    showShuttleModal, // [NEW]
+    setShowShuttleModal, // [NEW]
     cancel,
     alreadyHasScore,
     saving,
@@ -612,7 +670,7 @@ function MatchScoreCardMobile({ m, loadData, configMaxScore }) {
               ยกเลิก
             </button>
             <button
-              onClick={save}
+              onClick={triggerSave} // [CHANGE] เรียก triggerSave แทน save
               disabled={saving}
               className="flex-1 py-2 rounded-lg bg-indigo-600 text-white font-semibold text-sm hover:bg-indigo-700 shadow-sm"
             >
@@ -621,6 +679,14 @@ function MatchScoreCardMobile({ m, loadData, configMaxScore }) {
           </div>
         )}
       </div>
+
+      {/* [NEW] Render Modal */}
+      <ShuttleSelectorModal 
+        isOpen={showShuttleModal}
+        onClose={() => setShowShuttleModal(false)}
+        onConfirm={confirmSave}
+        loading={saving}
+      />
     </div>
   );
 }
@@ -636,7 +702,10 @@ function MatchScoreRowDesktop({ m, loadData, configMaxScore }) {
     canEdit,
     localSets,
     updateSetScore,
-    save,
+    triggerSave, // [CHANGE]
+    confirmSave, // [NEW]
+    showShuttleModal, // [NEW]
+    setShowShuttleModal, // [NEW]
     cancel,
     alreadyHasScore,
     saving,
@@ -669,102 +738,112 @@ function MatchScoreRowDesktop({ m, loadData, configMaxScore }) {
   }
 
   return (
-    <tr className="border-t align-middle hover:bg-slate-50/50 transition-colors">
-      <td className="p-2 text-center">
-        <div className="font-bold text-slate-700">{m.matchNo ?? "-"}</div>
-      </td>
-      <td className="p-2">
-        <div className="font-semibold text-slate-800 text-sm">
-          {teamName(m.team1)}
-        </div>
-        <div className="text-[10px] text-slate-400">vs</div>
-        <div className="font-semibold text-slate-800 text-sm">
-          {teamName(m.team2)}
-        </div>
-      </td>
-      <td className="p-2 text-center">
-        <div className="font-bold text-indigo-600 text-xs">
-          {handShort(m.handLevel)}
-        </div>
-      </td>
-      <td className="p-2 text-center text-xs text-slate-600">
-        {roundLabel(m)}
-      </td>
-      <td className="p-2 text-center font-bold text-slate-700 text-xs">
-        {m.court || "-"}
-      </td>
-      <td className="p-2 text-center">
-        <div className="text-xs font-medium text-slate-800 mb-1">
-          {m.status === "finished" ? "จบแล้ว" : m.status === "in-progress" ? "กำลังแข่ง" : "รอ"}
-        </div>
-        {statusBadge}
-      </td>
+    <>
+      <tr className="border-t align-middle hover:bg-slate-50/50 transition-colors">
+        <td className="p-2 text-center">
+          <div className="font-bold text-slate-700">{m.matchNo ?? "-"}</div>
+        </td>
+        <td className="p-2">
+          <div className="font-semibold text-slate-800 text-sm">
+            {teamName(m.team1)}
+          </div>
+          <div className="text-[10px] text-slate-400">vs</div>
+          <div className="font-semibold text-slate-800 text-sm">
+            {teamName(m.team2)}
+          </div>
+        </td>
+        <td className="p-2 text-center">
+          <div className="font-bold text-indigo-600 text-xs">
+            {handShort(m.handLevel)}
+          </div>
+        </td>
+        <td className="p-2 text-center text-xs text-slate-600">
+          {roundLabel(m)}
+        </td>
+        <td className="p-2 text-center font-bold text-slate-700 text-xs">
+          {m.court || "-"}
+        </td>
+        <td className="p-2 text-center">
+          <div className="text-xs font-medium text-slate-800 mb-1">
+            {m.status === "finished" ? "จบแล้ว" : m.status === "in-progress" ? "กำลังแข่ง" : "รอ"}
+          </div>
+          {statusBadge}
+        </td>
 
-      {/* Sets Input */}
-      {[0, 1, 2].map((i) => {
-        if (i >= maxSets) {
+        {/* Sets Input */}
+        {[0, 1, 2].map((i) => {
+          if (i >= maxSets) {
+            return (
+              <td key={i} className="p-2 text-center bg-slate-50">
+                <span className="text-slate-300 text-xs">-</span>
+              </td>
+            );
+          }
           return (
-            <td key={i} className="p-2 text-center bg-slate-50">
-              <span className="text-slate-300 text-xs">-</span>
+            <td key={i} className="p-2">
+              <div className="flex items-center justify-center gap-1">
+                <input
+                  type="text"
+                  className="border border-slate-300 rounded px-1 py-1 w-10 text-center text-sm font-bold focus:ring-1 focus:ring-indigo-500 outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                  value={localSets[i].t1 || ""}
+                  onChange={(e) => updateSetScore(i, "t1", e.target.value)}
+                  disabled={!canEdit}
+                  placeholder="0"
+                />
+                <span className="text-slate-400 text-[10px]">:</span>
+                <input
+                  type="text"
+                  className="border border-slate-300 rounded px-1 py-1 w-10 text-center text-sm font-bold focus:ring-1 focus:ring-indigo-500 outline-none disabled:bg-slate-100 disabled:text-slate-500"
+                  value={localSets[i].t2 || ""}
+                  onChange={(e) => updateSetScore(i, "t2", e.target.value)}
+                  disabled={!canEdit}
+                  placeholder="0"
+                />
+              </div>
             </td>
           );
-        }
-        return (
-          <td key={i} className="p-2">
-            <div className="flex items-center justify-center gap-1">
-              <input
-                type="text"
-                className="border border-slate-300 rounded px-1 py-1 w-10 text-center text-sm font-bold focus:ring-1 focus:ring-indigo-500 outline-none disabled:bg-slate-100 disabled:text-slate-500"
-                value={localSets[i].t1 || ""}
-                onChange={(e) => updateSetScore(i, "t1", e.target.value)}
-                disabled={!canEdit}
-                placeholder="0"
-              />
-              <span className="text-slate-400 text-[10px]">:</span>
-              <input
-                type="text"
-                className="border border-slate-300 rounded px-1 py-1 w-10 text-center text-sm font-bold focus:ring-1 focus:ring-indigo-500 outline-none disabled:bg-slate-100 disabled:text-slate-500"
-                value={localSets[i].t2 || ""}
-                onChange={(e) => updateSetScore(i, "t2", e.target.value)}
-                disabled={!canEdit}
-                placeholder="0"
-              />
-            </div>
-          </td>
-        );
-      })}
+        })}
 
-      <td className="p-2 text-center">
-        {!canEdit && m.status !== "finished" && (
-          <span className="text-[10px] text-slate-400">จบแมตช์ก่อน</span>
-        )}
-        {m.status === "finished" && !isEditing && (
-          <button
-            className="px-3 py-1 rounded border border-slate-300 text-xs font-medium hover:bg-white hover:border-indigo-300 hover:text-indigo-600 transition-colors"
-            onClick={() => setIsEditing(true)}
-          >
-            {alreadyHasScore ? "แก้ไข" : "กรอกผล"}
-          </button>
-        )}
-        {canEdit && (
-          <div className="flex flex-col gap-1 items-center">
+        <td className="p-2 text-center">
+          {!canEdit && m.status !== "finished" && (
+            <span className="text-[10px] text-slate-400">จบแมตช์ก่อน</span>
+          )}
+          {m.status === "finished" && !isEditing && (
             <button
-              className="w-full px-2 py-1 rounded bg-indigo-600 text-white text-xs hover:bg-indigo-700 shadow-sm disabled:opacity-70"
-              onClick={save}
-              disabled={saving}
+              className="px-3 py-1 rounded border border-slate-300 text-xs font-medium hover:bg-white hover:border-indigo-300 hover:text-indigo-600 transition-colors"
+              onClick={() => setIsEditing(true)}
             >
-              บันทึก
+              {alreadyHasScore ? "แก้ไข" : "กรอกผล"}
             </button>
-            <button
-              className="w-full px-2 py-1 rounded text-slate-500 text-[10px] hover:text-red-500 underline decoration-slate-300 hover:decoration-red-300"
-              onClick={cancel}
-              disabled={saving}
-            >
-              ยกเลิก
-            </button>
-          </div>
-        )}
-      </td>
-    </tr>
+          )}
+          {canEdit && (
+            <div className="flex flex-col gap-1 items-center">
+              <button
+                className="w-full px-2 py-1 rounded bg-indigo-600 text-white text-xs hover:bg-indigo-700 shadow-sm disabled:opacity-70"
+                onClick={triggerSave} // [CHANGE] เรียก triggerSave
+                disabled={saving}
+              >
+                บันทึก
+              </button>
+              <button
+                className="w-full px-2 py-1 rounded text-slate-500 text-[10px] hover:text-red-500 underline decoration-slate-300 hover:decoration-red-300"
+                onClick={cancel}
+                disabled={saving}
+              >
+                ยกเลิก
+              </button>
+            </div>
+          )}
+        </td>
+      </tr>
+
+      {/* [NEW] Render Modal */}
+      <ShuttleSelectorModal 
+        isOpen={showShuttleModal}
+        onClose={() => setShowShuttleModal(false)}
+        onConfirm={confirmSave}
+        loading={saving}
+      />
+    </>
   );
 }
