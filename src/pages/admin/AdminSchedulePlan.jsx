@@ -1,5 +1,5 @@
 // src/pages/admin/AdminSchedulePlan.jsx
-// (เวอร์ชัน UI Update: Fixed Bottom Toolbar)
+// (Update: Fixed Bottom Toolbar + Advanced Auto Time Settings)
 
 import React from "react";
 import { API, teamName } from "@/lib/api.js";
@@ -38,7 +38,7 @@ function formatTime(isoString) {
   }
 }
 
-// ============ Component: Settings Modal ============
+// ============ Component: Settings Modal (ตั้งค่าลำดับรุ่น) ============
 function SettingsModal({
   isOpen,
   onClose,
@@ -111,6 +111,122 @@ function SettingsModal({
   );
 }
 
+// ============ Component: Auto Time Modal (ตั้งค่าเวลา) ============
+function AutoTimeModal({ isOpen, onClose, onConfirm }) {
+  // ค่า Default
+  const [config, setConfig] = React.useState({
+    startTime: "09:00",
+    courts: 10,
+    groupMinutes: 20,
+    koMinutes: 30,
+  });
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 transition-opacity">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md animate-in fade-in zoom-in duration-200">
+        <div className="flex justify-between items-center p-4 border-b bg-slate-50">
+          <h3 className="text-lg font-bold text-slate-800">
+            🕒 ตั้งค่าการเติมเวลา (Auto Time)
+          </h3>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-slate-600 text-2xl leading-none"
+          >
+            &times;
+          </button>
+        </div>
+
+        <div className="p-5 space-y-4">
+          {/* Start Time & Courts */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                เวลาเริ่มแข่ง
+              </label>
+              <input
+                type="time"
+                className="w-full border rounded-lg px-3 py-2 text-slate-700 focus:ring-2 focus:ring-indigo-200 outline-none"
+                value={config.startTime}
+                onChange={(e) =>
+                  setConfig({ ...config, startTime: e.target.value })
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                จำนวนสนาม
+              </label>
+              <input
+                type="number"
+                min={1}
+                className="w-full border rounded-lg px-3 py-2 text-slate-700 focus:ring-2 focus:ring-indigo-200 outline-none"
+                value={config.courts}
+                onChange={(e) =>
+                  setConfig({ ...config, courts: Number(e.target.value) })
+                }
+              />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 my-2"></div>
+
+          {/* Durations */}
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+              ⏱️ รอบแบ่งกลุ่ม (นาที/คู่)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                className="flex-1 border rounded-lg px-3 py-2 text-slate-700 focus:ring-2 focus:ring-green-200 outline-none border-green-200 bg-green-50"
+                value={config.groupMinutes}
+                onChange={(e) =>
+                  setConfig({ ...config, groupMinutes: Number(e.target.value) })
+                }
+              />
+              <span className="text-sm text-slate-400">นาที</span>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+              🔥 รอบ Knockout (นาที/คู่)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                className="flex-1 border rounded-lg px-3 py-2 text-slate-700 focus:ring-2 focus:ring-orange-200 outline-none border-orange-200 bg-orange-50"
+                value={config.koMinutes}
+                onChange={(e) =>
+                  setConfig({ ...config, koMinutes: Number(e.target.value) })
+                }
+              />
+              <span className="text-sm text-slate-400">นาที</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 p-4 bg-slate-50 rounded-b-2xl border-t">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-200 rounded-lg"
+          >
+            ยกเลิก
+          </button>
+          <button
+            onClick={() => onConfirm(config)}
+            className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
+          >
+            เริ่มคำนวณเวลา
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ============ Component หลัก ============
 
 export default function AdminSchedulePlan() {
@@ -130,6 +246,10 @@ export default function AdminSchedulePlan() {
   const [saving, setSaving] = React.useState(false);
   const [err, setErr] = React.useState("");
   const [selectedIds, setSelectedIds] = React.useState(new Set());
+
+  // State สำหรับ Modal
+  const [showSettings, setShowSettings] = React.useState(false);
+  const [showTimeModal, setShowTimeModal] = React.useState(false); // [NEW]
 
   // Options แบบ Dynamic
   const handOptions = React.useMemo(() => {
@@ -168,7 +288,6 @@ export default function AdminSchedulePlan() {
   React.useEffect(() => {
     localStorage.setItem("scheduleSessionConfig", sessionConfig);
   }, [sessionConfig]);
-  const [showSettings, setShowSettings] = React.useState(false);
 
   // ============ Logic Load ============
   const load = async () => {
@@ -221,11 +340,6 @@ export default function AdminSchedulePlan() {
     if (next.has(id)) next.delete(id);
     else next.add(id);
     setSelectedIds(next);
-  };
-  const toggleSelectAll = () => {
-    if (selectedIds.size === items.length && items.length > 0)
-      setSelectedIds(new Set());
-    else setSelectedIds(new Set(items.map((x) => x._id)));
   };
 
   const getHandConfigMap = () => {
@@ -311,7 +425,6 @@ export default function AdminSchedulePlan() {
     const stageB = getStageType(b);
     if (stageA !== stageB) return stageA - stageB;
     if (stageA === 1) {
-      // Group
       const rA = Number(a.groupRound || a.roundNo || 0);
       const rB = Number(b.groupRound || b.roundNo || 0);
       if (rA !== rB) return rA - rB;
@@ -321,7 +434,6 @@ export default function AdminSchedulePlan() {
       if (nA !== nB) return nA.localeCompare(nB);
     }
     if (stageA === 2) {
-      // KO
       if (infoA.index !== infoB.index) return infoA.index - infoB.index;
       const kA = getKnockoutPriority(a);
       const kB = getKnockoutPriority(b);
@@ -378,37 +490,80 @@ export default function AdminSchedulePlan() {
     }
   }
 
-  async function handleAutoTime() {
-    if (!window.confirm("เติมเวลาอัตโนมัติ? (เริ่ม 09:00, +35 นาที/14 คู่)"))
-      return;
+  // ============ [NEW] Auto Time Logic ============
+
+  // 1. แค่เปิด Modal
+  function handleAutoTimeClick() {
+    setShowTimeModal(true);
+  }
+
+  // 2. คำนวณจริงเมื่อกด Confirm ใน Modal
+  async function executeAutoTime(config) {
+    setShowTimeModal(false);
     setSaving(true);
     try {
-      const orderedIds = items.map((m) => m._id);
-      if (orderedIds.length) await API.reorderMatches({ orderedIds });
-      const BASE_HOUR = 9;
-      const BASE_MINUTE = 0;
-      const SLOT_MINUTES = 35;
-      const MATCH_PER_SLOT = 14;
-      const today = new Date();
-      const tasks = items.map((m, index) => {
-        const slotIndex = Math.floor(index / MATCH_PER_SLOT);
-        const plusMinutes = SLOT_MINUTES * slotIndex;
-        const base = new Date(
-          today.getFullYear(),
-          today.getMonth(),
-          today.getDate(),
-          BASE_HOUR,
-          BASE_MINUTE
-        );
-        const dt = new Date(base.getTime() + plusMinutes * 60 * 1000);
-        return API.updateSchedule(m._id, { scheduledAt: dt.toISOString() });
+      const { startTime, courts, groupMinutes, koMinutes } = config;
+
+      // 1. คำนวณเวลา (เหมือนเดิม)
+      const [startH, startM] = startTime.split(":").map(Number);
+      const baseDate = new Date();
+      baseDate.setHours(startH, startM, 0, 0);
+      const startMs = baseDate.getTime();
+
+      let courtFinishTimes = new Array(courts).fill(startMs);
+
+      // 2. สร้าง Array ใหม่สำหรับอัปเดตหน้าจอทันที (Optimistic Update)
+      const updatedItems = items.map((m, index) => {
+        // คำนวณหาคิวสนาม
+        const earliestTime = Math.min(...courtFinishTimes);
+        const courtIndex = courtFinishTimes.indexOf(earliestTime);
+        const scheduledTime = new Date(earliestTime);
+
+        const isGroup =
+          m.roundType === "group" ||
+          (m.stage && m.stage.includes("Group")) ||
+          m.group;
+        const durationMinutes = isGroup ? groupMinutes : koMinutes;
+        courtFinishTimes[courtIndex] += durationMinutes * 60 * 1000;
+
+        // คืนค่า Object ใหม่ที่มีข้อมูลที่แก้แล้ว (เพื่อโชว์บนจอทันที)
+        return {
+          ...m,
+          scheduledAt: scheduledTime.toISOString(),
+          matchNo: index + 1,
+          orderIndex: index + 1,
+          court: String(courtIndex + 1),
+          // เพิ่ม flag ว่ากำลังบันทึกอยู่ก็ได้ (ถ้าต้องการ)
+        };
       });
+
+      // ✅ KEY FIX 1: อัปเดต State หน้าจอทันที! (ไม่ต้องรอ Server)
+      // ผู้ใช้จะเห็นเวลาเปลี่ยนทันทีที่กดปุ่ม
+      setData((prev) => ({ ...prev, items: updatedItems }));
+
+      // 3. ยิง API บันทึกลง Server (ทำเบื้องหลัง)
+      const tasks = updatedItems.map((m) => {
+        return API.updateSchedule(m._id, {
+          scheduledAt: m.scheduledAt,
+          matchNo: m.matchNo,
+          orderIndex: m.orderIndex,
+          court: m.court,
+        });
+      });
+
       await Promise.all(tasks);
-      await load();
-      alert("✅ เติมเวลาอัตโนมัติสำเร็จ!");
+
+      // ✅ KEY FIX 2: รอแป๊บนึง + โหลดใหม่แบบกัน Cache (timestamp)
+      // ใส่ timeout นิดหน่อยเพื่อให้ชัวร์ว่า DB เขียนเสร็จแล้วค่อยโหลดจริงมาทับ
+      setTimeout(() => {
+        load();
+      }, 500);
+
+      alert(`✅ คำนวณเวลาและจัดคิวสนามเรียบร้อย!`);
     } catch (e) {
       console.error(e);
-      alert("ผิดพลาด");
+      alert("เกิดข้อผิดพลาดในการบันทึกเวลา");
+      load(); // ถ้าพัง ให้โหลดข้อมูลเดิมกลับมา
     } finally {
       setSaving(false);
     }
@@ -523,7 +678,7 @@ export default function AdminSchedulePlan() {
           />
         </div>
 
-        {/* 🔥 [MODIFIED] Floating Toolbar (Fixed Bottom Center) */}
+        {/* Floating Toolbar (Fixed Bottom Center) */}
         <div
           className={`fixed bottom-24 left-1/2 transform -translate-x-1/2 z-40 transition-all duration-300 
             ${
@@ -767,12 +922,15 @@ export default function AdminSchedulePlan() {
           >
             ⚡ จัดเรียง Auto (ทั้งหมด)
           </button>
+
+          {/* ✅ เปลี่ยนปุ่มนี้ให้เรียก Modal */}
           <button
-            onClick={handleAutoTime}
+            onClick={handleAutoTimeClick}
             className="bg-white text-slate-700 border border-slate-300 shadow-lg px-4 py-3 rounded-full font-bold hover:bg-slate-50 transition"
           >
             🕒 เติมเวลา Auto
           </button>
+
           <button
             onClick={handleExportExcel}
             className="bg-green-600 text-white shadow-lg border border-green-700 px-4 py-3 rounded-full font-bold hover:bg-green-700 transition"
@@ -788,12 +946,19 @@ export default function AdminSchedulePlan() {
           </button>
         </div>
 
+        {/* Modals */}
         <SettingsModal
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
           initialConfig={sessionConfig}
           onSave={setSessionConfig}
           defaultList={defaultFromConst}
+        />
+
+        <AutoTimeModal
+          isOpen={showTimeModal}
+          onClose={() => setShowTimeModal(false)}
+          onConfirm={executeAutoTime}
         />
       </div>
     </div>
