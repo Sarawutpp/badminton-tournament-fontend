@@ -104,7 +104,7 @@ function CourtBucket({ courtNumber, match, onFinish, onCancel }) {
     setProcessing(true);
     try {
       await API.updateSchedule(match._id, { status: "finished" });
-      onFinish();
+      onFinish(false); // เรียก loadAll แบบ manual (show loading) หรือ false ก็ได้ตามชอบ
     } catch (e) {
       alert("Error finishing match: " + e.message);
     } finally {
@@ -289,43 +289,58 @@ export default function CourtRunningPage() {
   const [inProgress, setInProgress] = useState([]);
   const [selectedMatch, setSelectedMatch] = useState(null);
 
+  // ✅ เพิ่ม State สำหรับแสดงเวลาอัปเดต
+  const [lastUpdated, setLastUpdated] = useState(null);
+
   const { selectedTournament } = useTournament();
 
-  // -------------------------------------------------------
-  // ✅ แก้ไข: ดึงจำนวนสนามจาก Settings (Dynamic)
-  // -------------------------------------------------------
-  const totalCourts = selectedTournament?.settings?.totalCourts || 6; // Default 6
+  const totalCourts = selectedTournament?.settings?.totalCourts || 6;
 
-  // สร้าง Array [1, 2, ..., totalCourts]
   const courts = useMemo(() => {
     return Array.from({ length: totalCourts }, (_, i) => i + 1);
   }, [totalCourts]);
-  // -------------------------------------------------------
 
-  const loadAll = async () => {
-    setLoading(true);
-    setErr("");
+  // ✅ ปรับปรุง loadAll ให้รองรับ "Silent Mode" (ไม่หมุนติ้วๆ ถ้าระบบ Auto Refresh เอง)
+  const loadAll = async (isBackground = false) => {
+    if (!isBackground) setLoading(true);
+    // setErr(""); // Option: อาจจะไม่เคลียร์ error ใน background เพื่อให้เห็น error ค้างไว้ถ้ามีปัญหา
+
     try {
-      const queueRes = await API.listSchedule({
-        status: "scheduled",
-        sort: "matchNo",
-        pageSize: 100,
-      });
+      const [queueRes, progressRes] = await Promise.all([
+        API.listSchedule({
+          status: "scheduled",
+          sort: "matchNo",
+          pageSize: 100,
+        }),
+        API.listSchedule({
+          status: "in-progress",
+          pageSize: 50,
+        }),
+      ]);
+
       setQueue(queueRes.items || []);
-      const progressRes = await API.listSchedule({
-        status: "in-progress",
-        pageSize: 50,
-      });
       setInProgress(progressRes.items || []);
+      setLastUpdated(new Date()); // อัปเดตเวลาล่าสุด
     } catch (e) {
-      setErr(e.message || "Failed to load data");
+      console.error("Auto Refresh Error:", e);
+      if (!isBackground) setErr(e.message || "Failed to load data");
     } finally {
-      setLoading(false);
+      if (!isBackground) setLoading(false);
     }
   };
 
+  // ✅ useEffect สำหรับ Initial Load และ Auto Refresh Interval
   useEffect(() => {
-    loadAll();
+    // 1. โหลดครั้งแรก (Show Loading)
+    loadAll(false);
+
+    // 2. ตั้งเวลาโหลดทุก 5 วินาที (Silent Mode)
+    const intervalId = setInterval(() => {
+      loadAll(true);
+    }, 5000);
+
+    // Cleanup เมื่อปิดหน้า
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleMatchClick = (match) => {
@@ -334,7 +349,8 @@ export default function CourtRunningPage() {
 
   const handleAssignCourt = async (match, courtNumber) => {
     const matchId = match._id;
-    // Optimistic Update
+
+    // Optimistic Update: ทำทันทีให้ User รู้สึกเร็ว
     setQueue((prev) => prev.filter((m) => m._id !== matchId));
     const updatedMatch = {
       ...match,
@@ -351,9 +367,11 @@ export default function CourtRunningPage() {
         status: "in-progress",
         startedAt: updatedMatch.startedAt,
       });
+      // หลังทำเสร็จ อาจจะ Force Refresh อีกทีเพื่อให้ข้อมูลชัวร์สุด
+      loadAll(true);
     } catch (e) {
       alert("Error: " + e.message);
-      loadAll();
+      loadAll(false); // ถ้า Error ให้โหลดใหม่แบบเต็มรูปแบบ
     }
   };
 
@@ -379,15 +397,14 @@ export default function CourtRunningPage() {
         status: "scheduled",
         startedAt: null,
       });
+      loadAll(true);
     } catch (e) {
       alert("Error: " + e.message);
-      loadAll();
+      loadAll(false);
     }
   };
 
-  // คำนวณสนามที่ว่าง
   const busyCourts = inProgress.map((m) => String(m.court));
-  // กรองหาเลขสนามที่ไม่อยู่ใน busyCourts
   const freeCourts = courts.filter((c) => !busyCourts.includes(String(c)));
 
   return (
@@ -404,18 +421,32 @@ export default function CourtRunningPage() {
             </p>
           </div>
           <div className="flex items-center gap-3">
+            {/* ✅ แสดงเวลาอัปเดตล่าสุด */}
             <div className="hidden md:flex flex-col items-end mr-2">
+              <span className="text-xs text-slate-400">ข้อมูลล่าสุด</span>
+              <span className="text-xs font-mono text-slate-600">
+                {lastUpdated ? lastUpdated.toLocaleTimeString("th-TH") : "-"}
+              </span>
+            </div>
+
+            <div className="hidden md:flex flex-col items-end mr-2 pl-4 border-l">
               <span className="text-xs text-slate-400">คิวรอแข่ง</span>
               <span className="text-lg font-bold text-indigo-600">
                 {queue.length} แมทช์
               </span>
             </div>
             <button
-              onClick={loadAll}
+              onClick={() => loadAll(false)} // กดเองให้โหลดแบบ Show Loading
               disabled={loading}
               className="px-4 py-2 bg-indigo-50 text-indigo-600 border border-indigo-100 rounded-lg hover:bg-indigo-100 transition flex items-center gap-2 text-sm font-bold"
             >
-              {loading ? "Updating..." : "↻ Refresh"}
+              {loading ? (
+                <span>Loading...</span>
+              ) : (
+                <>
+                  ↻ <span className="hidden sm:inline">Refresh</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -441,9 +472,9 @@ export default function CourtRunningPage() {
             <div className="flex-grow overflow-y-auto p-2 space-y-2 scrollbar-thin scrollbar-thumb-slate-300">
               {queue.length === 0 && (
                 <div className="text-center text-slate-400 py-10 text-sm">
-                  -- ว่าง --
+                  {loading ? "กำลังโหลด..." : "-- ว่าง --"}
                   <br />
-                  (ไม่มีแมทช์รอแข่ง)
+                  {!loading && "(ไม่มีแมทช์รอแข่ง)"}
                 </div>
               )}
               {queue.map((m) => (
@@ -475,7 +506,7 @@ export default function CourtRunningPage() {
                     key={num}
                     courtNumber={num}
                     match={match}
-                    onFinish={loadAll}
+                    onFinish={(val) => loadAll(val ?? false)}
                     onCancel={handleCancelMatch}
                   />
                 );

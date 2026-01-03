@@ -10,7 +10,7 @@ export default function TournamentSelectionPage() {
   const [loading, setLoading] = useState(true);
 
   const { selectTournament } = useTournament();
-  const { user } = useAuth();
+  const { user } = useAuth(); // เช็ค user role ตรงนี้
   const navigate = useNavigate();
 
   // Modal State
@@ -29,19 +29,28 @@ export default function TournamentSelectionPage() {
     categoriesStr: "Hand-P, Hand-S, Hand-Baby",
     mode: "Standard", // Standard หรือ Mini
     qualificationType: "TOP2_UPPER_REST_LOWER",
+    isPublic: true, // ✅ [NEW] Default เป็น Public
   });
 
   const fetchTournaments = () => {
     setLoading(true);
-    API.listTournaments()
+
+    // ✅ [NEW] Logic: ถ้าไม่ใช่ Admin ให้ดึงเฉพาะ Public
+    // หมายเหตุ: ต้องมั่นใจว่า API.listTournaments รองรับการรับ parameter (query string)
+    // ถ้า API ของคุณไม่รับ argument ให้ไปแก้ไฟล์ api.js ให้รับ params แล้วส่งต่อ axios.get(url + params) นะครับ
+    const isAdmin = user && user.role === "admin";
+    const query = isAdmin ? "" : "?publicOnly=true";
+
+    API.listTournaments(query)
       .then((data) => setTournaments(data || []))
       .catch((err) => console.error(err))
       .finally(() => setLoading(false));
   };
 
+  // ✅ [MODIFIED] เพิ่ม user ใน dependency เพื่อให้โหลดใหม่ตอน Login/Logout หรือ User State เปลี่ยน
   useEffect(() => {
     fetchTournaments();
-  }, []);
+  }, [user]);
 
   // Reset Form เมื่อปิด Modal
   useEffect(() => {
@@ -55,6 +64,7 @@ export default function TournamentSelectionPage() {
         categoriesStr: "Hand-P, Hand-S, Hand-Baby",
         mode: "Standard",
         qualificationType: "TOP2_UPPER_REST_LOWER",
+        isPublic: true, // ✅ Reset
       });
     }
   }, [isModalOpen]);
@@ -85,6 +95,7 @@ export default function TournamentSelectionPage() {
       mode: isMini ? "Mini" : "Standard",
       qualificationType:
         t.settings?.qualificationType || "TOP2_UPPER_REST_LOWER",
+      isPublic: t.isPublic !== undefined ? t.isPublic : true, // ✅ Load ค่าเดิม
     });
 
     setIsModalOpen(true);
@@ -113,32 +124,32 @@ export default function TournamentSelectionPage() {
         settingsPayload.qualificationType = "MINI_SPLIT";
         settingsPayload.matchConfig = {
           groupStage: {
-            gamesToWin: 1, // 1 เกมจบ
+            gamesToWin: 1,
             maxScore: maxScoreNum,
-            hasDeuce: false, // ❌ ไม่มีดิวส์
+            hasDeuce: false,
             deuceCap: maxScoreNum,
-            allowDraw: false, // ❌ ห้ามเสมอ
+            allowDraw: false,
           },
           knockoutStage: {
-            gamesToWin: 2, // 2 ใน 3
+            gamesToWin: 2,
             maxScore: maxScoreNum,
-            hasDeuce: false, // ❌ ไม่มีดิวส์
+            hasDeuce: false,
             deuceCap: maxScoreNum,
           },
         };
       } else {
         settingsPayload.matchConfig = {
           groupStage: {
-            gamesToWin: 2, // เล่น 2 เซ็ต (BO2)
+            gamesToWin: 2,
             maxScore: maxScoreNum,
-            hasDeuce: false, // ❌ ไม่มีดิวส์
+            hasDeuce: false,
             deuceCap: maxScoreNum,
-            allowDraw: true, // ✅ เสมอได้ (1-1)
+            allowDraw: true,
           },
           knockoutStage: {
-            gamesToWin: 2, // 2 ใน 3
+            gamesToWin: 2,
             maxScore: maxScoreNum,
-            hasDeuce: true, // ✅ มีดิวส์
+            hasDeuce: true,
             deuceCap: 30,
           },
         };
@@ -147,9 +158,10 @@ export default function TournamentSelectionPage() {
       const payload = {
         name: formData.name,
         location: formData.location,
+        isPublic: formData.isPublic, // ✅ ส่งค่า isPublic ไป Backend
         dateRange: new Date().getFullYear().toString(),
         settings: settingsPayload,
-        // ส่ง rules ไปเฉพาะตอนสร้างใหม่ (แก้ไขจะไม่ไปทับ rules เดิม)
+        // ส่ง rules ไปเฉพาะตอนสร้างใหม่
         ...(editingId
           ? {}
           : { rules: { pointsWin: 3, pointsDraw: 1, pointsLose: 0 } }),
@@ -231,96 +243,115 @@ export default function TournamentSelectionPage() {
             <p className="text-gray-400">ยังไม่มีรายการแข่งขัน</p>
           </div>
         ) : (
-          tournaments.map((t) => (
-            <div
-              key={t._id}
-              onClick={() => handleSelect(t)}
-              className="bg-white p-6 rounded-xl shadow-sm hover:shadow-lg transition-all cursor-pointer border border-gray-200 group relative overflow-hidden flex flex-col justify-between h-[200px]"
-            >
-              <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500 group-hover:bg-indigo-600 transition-colors"></div>
+          tournaments.map((t) => {
+            // Safety Check: ถ้าไม่ใช่ Admin และเป็น Hidden ไม่ต้องแสดง (ป้องกัน Frontend หลุด)
+            if (user?.role !== "admin" && !t.isPublic) return null;
 
-              {/* 🔒 ปุ่มแก้ไข (แสดงเฉพาะ Admin) */}
-              {user && user.role === "admin" && (
-                <button
-                  onClick={(e) => handleEditClick(e, t)}
-                  className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors z-10"
-                  title="แก้ไขการตั้งค่า"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-5 w-5"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+            return (
+              <div
+                key={t._id}
+                onClick={() => handleSelect(t)}
+                className={`bg-white p-6 rounded-xl shadow-sm hover:shadow-lg transition-all cursor-pointer border border-gray-200 group relative overflow-hidden flex flex-col justify-between h-[200px] 
+                  ${!t.isPublic ? "opacity-80 bg-gray-50" : ""}`} // ✅ Dim การ์ดถ้า Hidden
+              >
+                <div
+                  className={`absolute top-0 left-0 w-1.5 h-full transition-colors 
+                  ${
+                    !t.isPublic
+                      ? "bg-gray-400"
+                      : "bg-indigo-500 group-hover:bg-indigo-600"
+                  }`}
+                ></div>
+
+                {/* ✅ Badge Hidden */}
+                {user?.role === "admin" && !t.isPublic && (
+                  <div className="absolute top-3 right-12 px-2 py-0.5 bg-gray-600 text-white text-[10px] rounded-md z-10 opacity-90">
+                    Hidden 👁️‍🗨️
+                  </div>
+                )}
+
+                {/* 🔒 ปุ่มแก้ไข (แสดงเฉพาะ Admin) */}
+                {user && user.role === "admin" && (
+                  <button
+                    onClick={(e) => handleEditClick(e, t)}
+                    className="absolute top-3 right-3 p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-full transition-colors z-10"
+                    title="แก้ไขการตั้งค่า"
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                    />
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                    />
-                  </svg>
-                </button>
-              )}
-
-              <div>
-                <h2 className="text-xl font-bold text-gray-800 mb-1 group-hover:text-indigo-700 transition-colors line-clamp-2 pr-8">
-                  {t.name}
-                </h2>
-                <p className="text-sm text-gray-500 mb-3 flex items-center gap-1">
-                  <span className="inline-block">📍</span>{" "}
-                  {t.location || "ไม่ระบุสถานที่"}
-                </p>
-
-                <div className="text-xs text-gray-400 space-y-1 bg-gray-50 p-2 rounded-lg border border-gray-100">
-                  <div className="flex justify-between">
-                    <span>รูปแบบ:</span>
-                    <span className="font-medium text-gray-600">
-                      {t.settings?.matchConfig?.groupStage?.gamesToWin === 1
-                        ? "Mini (1 เกม)"
-                        : "Standard (BO2)"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>สนาม:</span>{" "}
-                    <span className="font-medium text-gray-600">
-                      {t.settings?.totalCourts || 4} คอร์ท
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {(t.settings?.categories || []).slice(0, 3).map((c) => (
-                    <span
-                      key={c}
-                      className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded border border-indigo-100"
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
                     >
-                      {c}
-                    </span>
-                  ))}
-                </div>
-                <div className="absolute top-4 right-4">
-                  <span
-                    className={`text-[10px] px-2 py-1 rounded-full font-medium border ${
-                      t.status === "finished"
-                        ? "bg-gray-100 text-gray-500 border-gray-200"
-                        : "bg-green-50 text-green-700 border-green-200"
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                  </button>
+                )}
+
+                <div>
+                  <h2
+                    className={`text-xl font-bold mb-1 transition-colors line-clamp-2 pr-8 
+                    ${
+                      !t.isPublic
+                        ? "text-gray-500"
+                        : "text-gray-800 group-hover:text-indigo-700"
                     }`}
                   >
-                    {t.status === "finished" ? "จบแล้ว" : "Active"}
-                  </span>
+                    {t.name}
+                  </h2>
+                  <p className="text-sm text-gray-500 mb-3 flex items-center gap-1">
+                    <span className="inline-block">📍</span>{" "}
+                    {t.location || "ไม่ระบุสถานที่"}
+                  </p>
+
+                  <div className="text-xs text-gray-400 space-y-1 bg-gray-50 p-2 rounded-lg border border-gray-100">
+                    <div className="flex justify-between">
+                      <span>รูปแบบ:</span>
+                      <span className="font-medium text-gray-600">
+                        {t.settings?.matchConfig?.groupStage?.gamesToWin === 1
+                          ? "Mini (1 เกม)"
+                          : "Standard (BO2)"}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>สนาม:</span>{" "}
+                      <span className="font-medium text-gray-600">
+                        {t.settings?.totalCourts || 4} คอร์ท
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4">
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {(t.settings?.categories || []).slice(0, 3).map((c) => (
+                      <span
+                        key={c}
+                        className="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded border border-indigo-100"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                  <div className="absolute top-4 right-4">
+                    {/* (สถานะ Active/Finished เดิม) - ปรับตำแหน่งนิดหน่อยถ้าชนปุ่ม Edit */}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -352,6 +383,33 @@ export default function TournamentSelectionPage() {
                 <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider border-b pb-1">
                   ข้อมูลทั่วไป
                 </h4>
+
+                {/* ✅ [NEW] Toggle Visibility */}
+                <div className="flex items-center justify-between bg-gray-50 p-3 rounded-lg border border-gray-200">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-800">
+                      การแสดงผล (Visibility)
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      {formData.isPublic
+                        ? "🟢 สาธารณะ (ทุกคนมองเห็น)"
+                        : "👁️‍🗨️ ซ่อน (เฉพาะ Admin เห็น)"}
+                    </p>
+                  </div>
+
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="sr-only peer"
+                      checked={formData.isPublic}
+                      onChange={(e) =>
+                        setFormData({ ...formData, isPublic: e.target.checked })
+                      }
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                  </label>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     ชื่อรายการแข่งขัน <span className="text-red-500">*</span>

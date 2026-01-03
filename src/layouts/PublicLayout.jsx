@@ -1,14 +1,15 @@
+// src/layouts/PublicLayout.jsx
 import React, { useEffect } from "react";
 import { NavLink, Outlet, Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { useTournament } from "../contexts/TournamentContext"; // 1. Import Context
+import { useTournament } from "../contexts/TournamentContext";
 
 export default function PublicLayout() {
   const { user } = useAuth();
-  const { selectedTournament, clearTournament } = useTournament(); // 2. ดึงข้อมูลทัวร์นาเมนต์
+  const { selectedTournament, clearTournament } = useTournament();
   const navigate = useNavigate();
 
-  // 3. ถ้าไม่มีทัวร์นาเมนต์ที่เลือก ให้ดีดกลับไปหน้าเลือก
+  // ถ้าไม่มีทัวร์นาเมนต์ที่เลือก ให้ดีดกลับไปหน้าเลือก
   useEffect(() => {
     if (!selectedTournament) {
       navigate("/");
@@ -35,22 +36,23 @@ export default function PublicLayout() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    // ✅ เพิ่ม font-kanit ตรงนี้เพื่อให้มีผลทั้งหน้า Public
+    <div className="min-h-screen bg-gray-50 font-kanit">
       {/* Header */}
       <header className="sticky top-0 z-20 bg-white shadow-sm">
         <div className="max-w-4xl mx-auto px-4 h-16 flex justify-between items-center">
           <div className="flex flex-col overflow-hidden">
-             {/* 4. แสดงชื่อทัวร์นาเมนต์จาก Context */}
-             <h1 className="text-lg font-bold text-indigo-700 truncate leading-tight">
-               {selectedTournament.name}
-             </h1>
-             <span className="text-[10px] text-gray-400 truncate">
-               {selectedTournament.location || "ไม่ระบุสถานที่"}
-             </span>
+            {/* แสดงชื่อทัวร์นาเมนต์จาก Context */}
+            <h1 className="text-lg font-bold text-indigo-700 truncate leading-tight">
+              {selectedTournament.name}
+            </h1>
+            <span className="text-[10px] text-gray-400 truncate">
+              {selectedTournament.location || "ไม่ระบุสถานที่"}
+            </span>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            {/* 5. ปุ่มเปลี่ยนรายการ (สำหรับ User ทั่วไป) */}
+            {/* ปุ่มเปลี่ยนรายการ (สำหรับ User ทั่วไป) */}
             <button
               onClick={() => {
                 clearTournament();
@@ -89,7 +91,9 @@ export default function PublicLayout() {
             <TabLink to="schedule">ตารางแข่ง</TabLink>
             <TabLink to="standings">ตารางคะแนน</TabLink>
             <TabLink to="bracket">สายแข่ง (KO)</TabLink>
-            <TabLink to="hall-of-fame">ทำเนียบแชมป์ 🏆</TabLink> {/* ✅ [NEW] เมนูใหม่ */}
+
+            {/* ✅ Comment ซ่อนเมนู Hall of Fame ไว้ก่อน */}
+            {/* <TabLink to="hall-of-fame">ทำเนียบแชมป์ 🏆</TabLink> */}
           </div>
         </div>
       </nav>
