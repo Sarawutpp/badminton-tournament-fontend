@@ -31,30 +31,74 @@ function getPlayerNames(team) {
   return `(${names.join(", ")})`;
 }
 
-// Modal เลือกสนาม
-function CourtSelectionModal({ match, freeCourts, onClose, onSelect }) {
+// Modal เลือกสนาม (แก้ไขเพิ่มปุ่ม Extend)
+function CourtSelectionModal({
+  match,
+  freeCourts,
+  onClose,
+  onSelect,
+  onToggleHold,
+}) {
   if (!match) return null;
+  const isHold = match.isHold === true;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all scale-100">
+      <div
+        className={`rounded-xl shadow-2xl w-full max-w-xl overflow-hidden transform transition-all scale-100 ${
+          isHold ? "bg-amber-50" : "bg-white"
+        }`}
+      >
         {/* Header */}
-        <div className="bg-slate-800 p-4 text-white flex justify-between items-start">
+        <div
+          className={`p-4 text-white flex justify-between items-start ${
+            isHold ? "bg-amber-500" : "bg-slate-800"
+          }`}
+        >
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="bg-indigo-500 text-white text-xs font-bold px-2 py-0.5 rounded">
+              <span
+                className={`text-xs font-bold px-2 py-0.5 rounded ${
+                  isHold
+                    ? "bg-white text-amber-700"
+                    : "bg-indigo-500 text-white"
+                }`}
+              >
                 Match {match.matchNo}
               </span>
-              <span className="text-slate-300 text-sm">{match.matchId}</span>
+              {/* ป้ายเตือนใน Modal */}
+              {isHold && (
+                <span className="bg-white/20 text-white text-xs font-bold px-2 py-0.5 rounded border border-white/30">
+                  ⚠️ EXTEND
+                </span>
+              )}
+              <span
+                className={`${
+                  isHold ? "text-amber-100" : "text-slate-300"
+                } text-sm`}
+              >
+                {match.matchId}
+              </span>
             </div>
             <h3 className="text-lg font-bold leading-tight">
               {teamName(match.team1)}{" "}
-              <span className="text-slate-400 mx-1">vs</span>{" "}
+              <span
+                className={`${
+                  isHold ? "text-amber-200" : "text-slate-400"
+                } mx-1`}
+              >
+                vs
+              </span>{" "}
               {teamName(match.team2)}
             </h3>
           </div>
           <button
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition"
+            className={`${
+              isHold
+                ? "text-amber-100 hover:text-white"
+                : "text-slate-400 hover:text-white"
+            } transition`}
           >
             <span className="text-2xl leading-none">&times;</span>
           </button>
@@ -62,8 +106,25 @@ function CourtSelectionModal({ match, freeCourts, onClose, onSelect }) {
 
         {/* Body */}
         <div className="p-6">
+          {/* ✅ ปุ่ม Action: กดเพื่อเลื่อน/ยกเลิกเลื่อน */}
+          <div className="flex justify-end mb-4">
+            <button
+              onClick={() => onToggleHold(match)}
+              className={`px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 transition shadow-sm border
+                  ${
+                    isHold
+                      ? "bg-white text-emerald-600 border-emerald-200 hover:bg-emerald-50"
+                      : "bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200"
+                  }`}
+            >
+              {isHold ? "▶️ ยกเลิก Extend (พร้อมแข่ง)" : "⏳ เลื่อน (Extend)"}
+            </button>
+          </div>
+
           <h4 className="text-center text-slate-500 mb-4 text-sm font-medium">
-            เลือกสนามที่ว่างเพื่อเริ่มการแข่งขัน
+            {isHold
+              ? "⚠️ แมทช์นี้ถูกเลื่อนออกไป (หากพร้อมแล้วให้กดเลือกสนามด้านล่าง)"
+              : "เลือกสนามที่ว่างเพื่อเริ่มการแข่งขัน"}
           </h4>
 
           {freeCourts.length === 0 ? (
@@ -71,12 +132,26 @@ function CourtSelectionModal({ match, freeCourts, onClose, onSelect }) {
               ❌ ขณะนี้ไม่มีคอร์ทว่าง
             </div>
           ) : (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto custom-scrollbar p-1">
+            <div
+              className={`grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-[60vh] overflow-y-auto custom-scrollbar p-1 ${
+                isHold ? "opacity-50 hover:opacity-100 transition-opacity" : ""
+              }`}
+            >
               {freeCourts.map((courtNum) => (
                 <button
                   key={courtNum}
-                  onClick={() => onSelect(match, courtNum)}
-                  className="group flex flex-col items-center justify-center p-3 rounded-xl border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50 transition active:scale-95"
+                  onClick={() => {
+                    // กันลั่น: ถ้า Hold อยู่ ต้อง Confirm ก่อน
+                    if (
+                      isHold &&
+                      !window.confirm(
+                        "แมทช์นี้ถูกกด Extend ไว้\nยืนยันที่จะเรียกลงสนาม?"
+                      )
+                    )
+                      return;
+                    onSelect(match, courtNum);
+                  }}
+                  className="group flex flex-col items-center justify-center p-3 rounded-xl border-2 border-slate-100 hover:border-indigo-600 hover:bg-indigo-50 transition active:scale-95 bg-white"
                 >
                   <span className="text-xs text-slate-400 group-hover:text-indigo-600 font-medium">
                     คอร์ท
@@ -237,42 +312,98 @@ function CourtBucket({ courtNumber, match, onFinish, onCancel }) {
   );
 }
 
-// รายการในคิว
+// รายการในคิว (แก้ไขแสดงผลสีเหลืองถ้า Hold)
 function MatchQueueItem({ match, onClick }) {
+  const isHold = match.isHold === true;
+
   return (
     <div
       onClick={() => onClick(match)}
-      className="group relative flex items-stretch bg-white border border-slate-200 rounded-lg shadow-sm hover:shadow-md hover:border-indigo-400 hover:ring-1 hover:ring-indigo-100 cursor-pointer transition-all active:scale-[0.98] overflow-hidden"
+      className={`group relative flex items-stretch border rounded-lg shadow-sm cursor-pointer transition-all active:scale-[0.98] overflow-hidden
+        ${
+          isHold
+            ? "bg-amber-50 border-amber-300 ring-1 ring-amber-200" // สีเหลืองเมื่อ Hold
+            : "bg-white border-slate-200 hover:shadow-md hover:border-indigo-400 hover:ring-1 hover:ring-indigo-100"
+        }
+      `}
     >
-      <div className="w-14 bg-slate-800 text-white flex flex-col items-center justify-center flex-shrink-0 group-hover:bg-indigo-600 transition-colors">
-        <span className="text-[9px] uppercase font-bold opacity-70">Match</span>
-        <span className="text-xl font-bold leading-none">{match.matchNo}</span>
+      <div
+        className={`w-14 flex flex-col items-center justify-center flex-shrink-0 transition-colors
+        ${
+          isHold
+            ? "bg-amber-400 text-amber-900"
+            : "bg-slate-800 text-white group-hover:bg-indigo-600"
+        }
+      `}
+      >
+        {isHold ? (
+          <>
+            <span className="text-xl">⏳</span>
+            <span className="text-[8px] font-bold mt-1">EXTEND</span>
+          </>
+        ) : (
+          <>
+            <span className="text-[9px] uppercase font-bold opacity-70">
+              Match
+            </span>
+            <span className="text-xl font-bold leading-none">
+              {match.matchNo}
+            </span>
+          </>
+        )}
       </div>
+
       <div className="flex-grow p-2.5 min-w-0">
         <div className="flex justify-between items-start mb-1">
-          <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded font-semibold border border-slate-200">
+          <span
+            className={`text-[10px] px-1.5 py-0.5 rounded font-semibold border 
+            ${
+              isHold
+                ? "bg-amber-100 text-amber-800 border-amber-200"
+                : "bg-slate-100 text-slate-600 border-slate-200"
+            }`}
+          >
             {match.handLevel}
           </span>
           <span className="text-[10px] text-slate-400 font-mono">
             {formatTime(match.scheduledAt)}
           </span>
         </div>
+
         <div className="text-sm font-medium text-slate-800 leading-tight truncate pr-1">
-          <span className="group-hover:text-indigo-700 transition-colors">
+          <span
+            className={`${
+              isHold ? "" : "group-hover:text-indigo-700"
+            } transition-colors`}
+          >
             {teamName(match.team1)}
           </span>
         </div>
         <div className="text-[10px] text-slate-400 my-0.5">vs</div>
         <div className="text-sm font-medium text-slate-800 leading-tight truncate pr-1">
-          <span className="group-hover:text-indigo-700 transition-colors">
+          <span
+            className={`${
+              isHold ? "" : "group-hover:text-indigo-700"
+            } transition-colors`}
+          >
             {teamName(match.team2)}
           </span>
         </div>
-      </div>
-      <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <span className="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow">
-          เลือก
-        </span>
+
+        {/* ป้ายเตือนมุมขวาล่าง */}
+        {isHold ? (
+          <div className="absolute right-2 bottom-2">
+            <span className="bg-amber-200 text-amber-800 text-[9px] font-bold px-1.5 py-0.5 rounded border border-amber-300 animate-pulse">
+              เลื่อน (Extend)
+            </span>
+          </div>
+        ) : (
+          <div className="absolute right-2 bottom-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="bg-indigo-600 text-white text-[10px] px-1.5 py-0.5 rounded shadow">
+              เลือก
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -347,6 +478,33 @@ export default function CourtRunningPage() {
     setSelectedMatch(match);
   };
 
+  // ✅ เพิ่มฟังก์ชันสลับสถานะ Hold (Extend)
+  const handleToggleHold = async (match) => {
+    const newHoldStatus = !match.isHold;
+
+    // 1. Optimistic Update (แก้ที่หน้าจอทันที)
+    setQueue((prev) =>
+      prev.map((m) => {
+        if (m._id === match._id) return { ...m, isHold: newHoldStatus };
+        return m;
+      })
+    );
+
+    // อัปเดต Modal ถ้าเปิดอยู่
+    if (selectedMatch && selectedMatch._id === match._id) {
+      setSelectedMatch((prev) => ({ ...prev, isHold: newHoldStatus }));
+    }
+
+    try {
+      // 2. ส่งไป Backend
+      await API.updateSchedule(match._id, { isHold: newHoldStatus });
+      loadAll(true); // โหลดซ้ำเพื่อความชัวร์
+    } catch (e) {
+      alert("Error: " + e.message);
+      loadAll(false); // ถ้าพังให้โหลดใหม่
+    }
+  };
+
   const handleAssignCourt = async (match, courtNumber) => {
     const matchId = match._id;
 
@@ -357,6 +515,7 @@ export default function CourtRunningPage() {
       court: String(courtNumber),
       status: "in-progress",
       startedAt: new Date().toISOString(),
+      isHold: false, // ✅ Clear Hold เมื่อลงสนาม
     };
     setInProgress((prev) => [...prev, updatedMatch]);
     setSelectedMatch(null);
@@ -366,6 +525,7 @@ export default function CourtRunningPage() {
         court: String(courtNumber),
         status: "in-progress",
         startedAt: updatedMatch.startedAt,
+        isHold: false, // ✅ ส่งไป Backend ให้เอา Hold ออก
       });
       // หลังทำเสร็จ อาจจะ Force Refresh อีกทีเพื่อให้ข้อมูลชัวร์สุด
       loadAll(true);
@@ -516,13 +676,14 @@ export default function CourtRunningPage() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal - เพิ่ม props onToggleHold */}
       {selectedMatch && (
         <CourtSelectionModal
           match={selectedMatch}
           freeCourts={freeCourts}
           onClose={() => setSelectedMatch(null)}
           onSelect={handleAssignCourt}
+          onToggleHold={handleToggleHold}
         />
       )}
     </>

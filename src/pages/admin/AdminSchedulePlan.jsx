@@ -1,5 +1,5 @@
 // src/pages/admin/AdminSchedulePlan.jsx
-// (Update: Fixed Bottom Toolbar + Advanced Auto Time Settings)
+// (Update: Fixed Bottom Toolbar + Natural Queue Auto Time + Fixed Time Mode)
 
 import React from "react";
 import { API, teamName } from "@/lib/api.js";
@@ -116,9 +116,11 @@ function AutoTimeModal({ isOpen, onClose, onConfirm }) {
   // ค่า Default
   const [config, setConfig] = React.useState({
     startTime: "09:00",
-    courts: 10,
-    groupMinutes: 20,
-    koMinutes: 30,
+    courts: 14, // Default เป็น 14 สนามตามที่คุณเคยระบุ
+    isFixedTime: true, // ✅ Default เป็น Fixed Time เพื่อให้ตารางสวย
+    fixedMinutes: 30, // ✅ Default 30 นาที
+    groupMinutes: 25,
+    koMinutes: 35,
   });
 
   if (!isOpen) return null;
@@ -172,40 +174,88 @@ function AutoTimeModal({ isOpen, onClose, onConfirm }) {
 
           <div className="border-t border-slate-100 my-2"></div>
 
-          {/* Durations */}
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-              ⏱️ รอบแบ่งกลุ่ม (นาที/คู่)
+          {/* Mode Selection */}
+          <div className="flex items-center gap-2 mb-2">
+            <input
+              type="checkbox"
+              id="fixedMode"
+              className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+              checked={config.isFixedTime}
+              onChange={(e) =>
+                setConfig({ ...config, isFixedTime: e.target.checked })
+              }
+            />
+            <label
+              htmlFor="fixedMode"
+              className="text-sm font-semibold text-slate-700 select-none cursor-pointer"
+            >
+              ใช้เวลาเท่ากันทุกแมตช์ (แนะนำ ✅)
             </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                className="flex-1 border rounded-lg px-3 py-2 text-slate-700 focus:ring-2 focus:ring-green-200 outline-none border-green-200 bg-green-50"
-                value={config.groupMinutes}
-                onChange={(e) =>
-                  setConfig({ ...config, groupMinutes: Number(e.target.value) })
-                }
-              />
-              <span className="text-sm text-slate-400">นาที</span>
-            </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
-              🔥 รอบ Knockout (นาที/คู่)
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="number"
-                className="flex-1 border rounded-lg px-3 py-2 text-slate-700 focus:ring-2 focus:ring-orange-200 outline-none border-orange-200 bg-orange-50"
-                value={config.koMinutes}
-                onChange={(e) =>
-                  setConfig({ ...config, koMinutes: Number(e.target.value) })
-                }
-              />
-              <span className="text-sm text-slate-400">นาที</span>
+          {config.isFixedTime ? (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                ⏱️ เวลาต่อแมตช์ (นาที)
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  className="flex-1 border rounded-lg px-3 py-2 text-slate-700 focus:ring-2 focus:ring-indigo-200 outline-none border-indigo-200 bg-indigo-50"
+                  value={config.fixedMinutes}
+                  onChange={(e) =>
+                    setConfig({
+                      ...config,
+                      fixedMinutes: Number(e.target.value),
+                    })
+                  }
+                />
+                <span className="text-sm text-slate-400">นาที</span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                  ⏱️ รอบแบ่งกลุ่ม (นาที/คู่)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    className="flex-1 border rounded-lg px-3 py-2 text-slate-700 focus:ring-2 focus:ring-green-200 outline-none border-green-200 bg-green-50"
+                    value={config.groupMinutes}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        groupMinutes: Number(e.target.value),
+                      })
+                    }
+                  />
+                  <span className="text-sm text-slate-400">นาที</span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase mb-1">
+                  🔥 รอบ Knockout (นาที/คู่)
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    className="flex-1 border rounded-lg px-3 py-2 text-slate-700 focus:ring-2 focus:ring-orange-200 outline-none border-orange-200 bg-orange-50"
+                    value={config.koMinutes}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        koMinutes: Number(e.target.value),
+                      })
+                    }
+                  />
+                  <span className="text-sm text-slate-400">นาที</span>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <div className="flex justify-end gap-2 p-4 bg-slate-50 rounded-b-2xl border-t">
@@ -219,7 +269,7 @@ function AutoTimeModal({ isOpen, onClose, onConfirm }) {
             onClick={() => onConfirm(config)}
             className="px-6 py-2 text-sm font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-sm"
           >
-            เริ่มคำนวณเวลา
+            คำนวณเวลา
           </button>
         </div>
       </div>
@@ -249,7 +299,7 @@ export default function AdminSchedulePlan() {
 
   // State สำหรับ Modal
   const [showSettings, setShowSettings] = React.useState(false);
-  const [showTimeModal, setShowTimeModal] = React.useState(false); // [NEW]
+  const [showTimeModal, setShowTimeModal] = React.useState(false);
 
   // Options แบบ Dynamic
   const handOptions = React.useMemo(() => {
@@ -490,7 +540,7 @@ export default function AdminSchedulePlan() {
     }
   }
 
-  // ============ [NEW] Auto Time Logic ============
+  // ============ [NEW] Auto Time Logic (Forecast) ============
 
   // 1. แค่เปิด Modal
   function handleAutoTimeClick() {
@@ -502,9 +552,16 @@ export default function AdminSchedulePlan() {
     setShowTimeModal(false);
     setSaving(true);
     try {
-      const { startTime, courts, groupMinutes, koMinutes } = config;
+      // ดึงค่า Config
+      const {
+        startTime,
+        courts,
+        isFixedTime,
+        fixedMinutes,
+        groupMinutes,
+        koMinutes,
+      } = config;
 
-      // 1. คำนวณเวลา (เหมือนเดิม)
       const [startH, startM] = startTime.split(":").map(Number);
       const baseDate = new Date();
       baseDate.setHours(startH, startM, 0, 0);
@@ -512,58 +569,70 @@ export default function AdminSchedulePlan() {
 
       let courtFinishTimes = new Array(courts).fill(startMs);
 
-      // 2. สร้าง Array ใหม่สำหรับอัปเดตหน้าจอทันที (Optimistic Update)
+      // คำนวณเวลาใหม่ ตามลำดับที่เห็นหน้าจอ (items ปัจจุบัน)
       const updatedItems = items.map((m, index) => {
-        // คำนวณหาคิวสนาม
         const earliestTime = Math.min(...courtFinishTimes);
         const courtIndex = courtFinishTimes.indexOf(earliestTime);
         const scheduledTime = new Date(earliestTime);
 
-        const isGroup =
-          m.roundType === "group" ||
-          (m.stage && m.stage.includes("Group")) ||
-          m.group;
-        const durationMinutes = isGroup ? groupMinutes : koMinutes;
+        let durationMinutes = 30;
+        if (isFixedTime) {
+          durationMinutes = fixedMinutes;
+        } else {
+          const isGroup =
+            m.roundType === "group" ||
+            (m.stage && m.stage.includes("Group")) ||
+            m.group;
+          durationMinutes = isGroup ? groupMinutes : koMinutes;
+        }
+
         courtFinishTimes[courtIndex] += durationMinutes * 60 * 1000;
 
-        // คืนค่า Object ใหม่ที่มีข้อมูลที่แก้แล้ว (เพื่อโชว์บนจอทันที)
         return {
           ...m,
           scheduledAt: scheduledTime.toISOString(),
-          matchNo: index + 1,
-          orderIndex: index + 1,
           court: String(courtIndex + 1),
-          // เพิ่ม flag ว่ากำลังบันทึกอยู่ก็ได้ (ถ้าต้องการ)
+          matchNo: index + 1, // แค่แสดงผล UI
+          orderIndex: index + 1, // แค่แสดงผล UI
         };
       });
 
-      // ✅ KEY FIX 1: อัปเดต State หน้าจอทันที! (ไม่ต้องรอ Server)
-      // ผู้ใช้จะเห็นเวลาเปลี่ยนทันทีที่กดปุ่ม
+      // 3. อัปเดตหน้าจอทันที (Optimistic Update)
       setData((prev) => ({ ...prev, items: updatedItems }));
 
-      // 3. ยิง API บันทึกลง Server (ทำเบื้องหลัง)
+      // ---------------------------------------------------------
+      // ✅ แก้ไข: บันทึกลำดับด้วย Bulk API ก่อน เพื่อกันแมทช์กระโดด
+      // ---------------------------------------------------------
+      const orderedIds = updatedItems.map((m) => m._id);
+      await API.reorderMatches({ orderedIds });
+
+      // ---------------------------------------------------------
+      // ✅ จากนั้นค่อยบันทึกเวลาและสนาม (ไม่ต้องส่ง orderIndex ไปซ้ำ)
+      // ---------------------------------------------------------
       const tasks = updatedItems.map((m) => {
         return API.updateSchedule(m._id, {
           scheduledAt: m.scheduledAt,
           matchNo: m.matchNo,
-          orderIndex: m.orderIndex,
-          court: m.court,
+          court: null,
         });
       });
 
       await Promise.all(tasks);
 
-      // ✅ KEY FIX 2: รอแป๊บนึง + โหลดใหม่แบบกัน Cache (timestamp)
-      // ใส่ timeout นิดหน่อยเพื่อให้ชัวร์ว่า DB เขียนเสร็จแล้วค่อยโหลดจริงมาทับ
+      // เพิ่มเวลา delay นิดหน่อยเพื่อให้ Server ประมวลผลทัน
       setTimeout(() => {
         load();
-      }, 500);
+      }, 800);
 
-      alert(`✅ คำนวณเวลาและจัดคิวสนามเรียบร้อย!`);
+      alert(
+        `✅ พยากรณ์เวลาและจัดลำดับเรียบร้อย! (${
+          isFixedTime ? `Fixed ${fixedMinutes} mins` : "Auto Mode"
+        })`
+      );
     } catch (e) {
       console.error(e);
-      alert("เกิดข้อผิดพลาดในการบันทึกเวลา");
-      load(); // ถ้าพัง ให้โหลดข้อมูลเดิมกลับมา
+      alert("เกิดข้อผิดพลาดในการบันทึกเวลา: " + e.message);
+      load(); // โหลดค่าเดิมกลับมาถ้าพัง
     } finally {
       setSaving(false);
     }

@@ -175,39 +175,81 @@ function CompactCourtCard({ courtNumber, match, isTvMode = false }) {
 
 // ✅ [แก้ไขเพิ่มเติม] ปรับ QueueItem ให้สไตล์ตรงกัน
 function QueueItem({ match, index }) {
+  const isHold = match.isHold === true;
+
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-3 flex items-center gap-3 shadow-sm hover:shadow-md transition-shadow">
-      <div className="relative bg-slate-800 text-white rounded-lg flex flex-col items-center justify-center w-12 h-12 flex-shrink-0">
-        <span className="text-[8px] uppercase font-semibold opacity-60">
-          Match
-        </span>
-        {/* ปรับ font-bold เป็น font-extrabold */}
-        <span className="text-lg font-extrabold leading-none">
-          {match.matchNo}
-        </span>
-        <div className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-yellow-400 text-yellow-900 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white shadow-sm">
-          {index + 1}
-        </div>
+    <div
+      className={`border rounded-xl p-3 flex items-center gap-3 shadow-sm transition-all
+        ${
+          isHold
+            ? "bg-amber-50 border-amber-300 shadow-none opacity-90" // สีเหลืองเมื่อ Hold
+            : "bg-white border-slate-200 hover:shadow-md"
+        }
+    `}
+    >
+      {/* Box เลข Match ด้านซ้าย */}
+      <div
+        className={`relative rounded-lg flex flex-col items-center justify-center w-12 h-12 flex-shrink-0
+         ${isHold ? "bg-amber-500 text-white" : "bg-slate-800 text-white"}
+      `}
+      >
+        {isHold ? (
+          // ไอคอนนาฬิกาเมื่อ Extend
+          <span className="text-2xl">⏳</span>
+        ) : (
+          <>
+            <span className="text-[8px] uppercase font-semibold opacity-60">
+              Match
+            </span>
+            <span className="text-lg font-extrabold leading-none">
+              {match.matchNo}
+            </span>
+          </>
+        )}
+
+        {/* ลำดับคิว (แสดงเฉพาะตอนไม่ Hold) */}
+        {!isHold && (
+          <div className="absolute -top-1.5 -left-1.5 w-5 h-5 bg-yellow-400 text-yellow-900 rounded-full flex items-center justify-center text-[10px] font-bold border-2 border-white shadow-sm">
+            {index + 1}
+          </div>
+        )}
       </div>
+
       <div className="flex-grow min-w-0 overflow-hidden">
         <div className="flex items-center gap-2 mb-1">
-          {/* ปรับ font-bold เป็น font-semibold */}
-          <span className="text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-700 rounded font-semibold border border-orange-100">
-            {match.handLevel}
-          </span>
+          {/* ✅ ป้ายสถานะ เปลี่ยนคำเป็น "เลื่อน (Extend)" */}
+          {isHold ? (
+            <span className="text-[10px] px-2 py-0.5 bg-amber-200 text-amber-800 rounded-full font-bold border border-amber-300 animate-pulse">
+              เลื่อน (Extend)
+            </span>
+          ) : (
+            <span className="text-[10px] px-1.5 py-0.5 bg-orange-50 text-orange-700 rounded font-semibold border border-orange-100">
+              {match.handLevel}
+            </span>
+          )}
+
           <span className="text-[10px] text-slate-400 truncate border-l border-slate-200 pl-2">
             {getRoundLabel(match)}
           </span>
         </div>
-        {/* ชื่อทีมในคิวก็ปรับเป็น font-semibold */}
-        <div className="text-sm font-semibold text-slate-800 truncate">
+
+        {/* ชื่อทีม (ถ้า Hold ให้สีจางลงนิดหน่อย) */}
+        <div
+          className={`text-sm font-semibold truncate ${
+            isHold ? "text-slate-500" : "text-slate-800"
+          }`}
+        >
           {teamName(match.team1)}
         </div>
         <div className="text-[10px] text-slate-400 font-medium pl-0.5 truncate">
           {getPlayerNames(match.team1)}
         </div>
         <div className="text-[10px] text-slate-400 my-0.5 italic">vs</div>
-        <div className="text-sm font-semibold text-slate-800 truncate">
+        <div
+          className={`text-sm font-semibold truncate ${
+            isHold ? "text-slate-500" : "text-slate-800"
+          }`}
+        >
           {teamName(match.team2)}
         </div>
         <div className="text-[10px] text-slate-400 font-medium pl-0.5 truncate">
