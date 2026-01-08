@@ -1,6 +1,7 @@
+// src/pages/public/RulesPage.jsx
 import React, { useState } from "react";
 
-// --- Components ย่อย ---
+// --- Components ย่อย (Design Layout) ---
 
 const RuleSection = ({ title, icon, children, id }) => (
   <section
@@ -40,7 +41,7 @@ const HighlightBox = ({ type = "info", title, children }) => {
   );
 };
 
-const VoteCard = ({ count, title, action, color }) => {
+const VoteCard = ({ count, title, description, color }) => {
   const styles = {
     red: "bg-rose-50 border-rose-100 text-rose-800",
     orange: "bg-orange-50 border-orange-100 text-orange-800",
@@ -52,11 +53,11 @@ const VoteCard = ({ count, title, action, color }) => {
       className={`flex flex-col border rounded-xl p-4 ${styles[color]} relative overflow-hidden text-center md:text-left h-full`}
     >
       <div className="font-bold text-xl mb-1">{count}</div>
-      <div className="text-[10px] md:text-xs font-semibold uppercase tracking-wider opacity-60 mb-2">
+      <div className="text-[11px] md:text-xs font-semibold uppercase tracking-wider opacity-70 mb-2">
         {title}
       </div>
-      <div className="text-sm font-medium mt-auto leading-snug opacity-90">
-        {action}
+      <div className="text-xs md:text-sm font-medium mt-auto leading-snug opacity-90 whitespace-pre-line">
+        {description}
       </div>
     </div>
   );
@@ -89,10 +90,8 @@ export default function RulesPage() {
           title: "ข้อ 2: กติกาการเสิร์ฟเฉพาะรุ่น",
           sub1: "2.1 รุ่นมือ S",
           desc1: "ใช้กติกาการเสิร์ฟตามมาตรฐานสากล BWF",
-          // ✅ ปรับแก้: เพิ่มเว้นวรรคและจัดคำให้สวยงาม
           sub2: "2.2 รุ่น Baby, BG-, N, BG(men/mixs), Single(NB/N)",
           warningTitle: "⚠️ ข้อห้ามสำคัญ",
-          // ✅ ปรับแก้: แยก icon กับ text ออกจากกัน เพื่อการจัด Layout ที่ไม่เพี้ยน
           warningList: [
             {
               icon: "✅",
@@ -217,48 +216,76 @@ export default function RulesPage() {
           timeoutDesc: "ขอปฐมพยาบาลได้ 1 ครั้ง (ไม่เกิน 10 นาที)",
         },
         r7: {
-          title: "ข้อ 7: การตรวจสอบมือ",
-          desc: (
-            <>
-              เทียบฟอร์มการเล่นจริงกับ <strong>Moodeng Cup Model</strong>{" "}
-              และคลิปประเมินตนเอง (ป้องกัน Sandbagging / Over Model)
-            </>
-          ),
-          voteTitle: "🗳️ เกณฑ์การตัดสิน (Voting & Penalty)",
+          title: "ข้อ 7: การตรวจสอบมือ (Skill Level Verification)",
+          // รายละเอียดตาม Text ที่ให้มา
+          sub71: "7.1 เกณฑ์การตัดสิน",
+          desc71:
+            "การพิจารณาความสามารถของนักกีฬาจะยึดตามมาตรฐานกลางของรายการ (Moodeng Cup Model) เป็นหลัก เพื่อให้เกิดความยุติธรรมสูงสุด",
+          sub72: "7.2 กระบวนการตรวจสอบ",
+          desc72_intro:
+            "คณะกรรมการจะนำ คลิปวิดีโอเหตุการณ์จริง (จากทีมงานหรือผู้ประท้วง) มาทำการตรวจสอบเปรียบเทียบใน 2 ประเด็นหลัก คือ",
+          desc72_list: [
+            {
+              head: "เปรียบเทียบกับคลิปประเมินตนเอง (Vs. Self-Evaluation):",
+              text: "เพื่อตรวจสอบว่าฟอร์มการเล่นแตกต่างจากตอนส่งคลิปอย่างสิ้นเชิง ราวกับเป็นคนละคน (Sandbagging) หรือไม่",
+            },
+            {
+              head: "เปรียบเทียบกับมาตรฐานรายการ (Vs. Model):",
+              text: "เพื่อตรวจสอบว่าฝีมือการเล่นจริง เกินกว่ามาตรฐาน (Over Model) ของรุ่นที่สมัครอย่างเห็นได้ชัดหรือไม่",
+            },
+          ],
+          sub73: "7.3 เกณฑ์การตัดสินและบทลงโทษ (Voting & Penalty)",
           voteCards: [
             {
-              count: "3 เสียง",
-              title: "เอกฉันท์",
-              action: "Disqualified (ตัดสิทธิ์ / ไม่คืนเงิน)",
+              count: "3 ท่าน (3 เสียง)",
+              title: "โหวตตรงกันหมด",
+              description:
+                "❌ ถือว่าผิดกติกาชัดเจน\n👉 ตัดสิทธิ์ออกจากการแข่งขัน (Disqualified) ตลอดทั้งรายการ\n(ผลโมฆะ / ไม่คืนเงิน)",
+              color: "red",
             },
             {
-              count: "2 เสียง",
-              title: "เสียงข้างมาก",
-              action: "Forfeit (ปรับแพ้เฉพาะนัดนั้น 0-21)",
+              count: "2 ท่าน (2 เสียง)",
+              title: "โหวตตรงกัน 2 ท่าน",
+              description:
+                "🟠 ผิดกติกาเฉพาะเหตุการณ์\n👉 ปรับแพ้แมตช์นั้น (Forfeit)\nคู่แข่งชนะ 21-0, 21-0 (ได้ 3 แต้ม)\n(ยังแข่งแมตช์ต่อไปได้)",
+              color: "orange",
             },
             {
-              count: "0-1 เสียง",
+              count: "0-1 ท่าน",
               title: "เสียงไม่ถึงเกณฑ์",
-              action: "ไม่ผิดกติกา (ยึดสกอร์จริง)",
+              description:
+                "🟢 ไม่ผิดกติกา\n👉 ให้ยึดผลการแข่งขันตามสกอร์จริงในสนาม",
+              color: "green",
             },
           ],
-          note: "*ตัดสินโดยคณะกรรมการกลาง 3 ท่าน",
+          note: "*ตัดสินชี้ขาดโดยคณะกรรมการกลาง 3 ท่าน",
         },
         r8: {
-          title: "ข้อ 8: การประท้วง (Protest)",
-          evidenceTitle: "หลักฐานสำคัญ",
-          evidenceDesc: '"ต้องบันทึกวิดีโอด้วยตนเอง เพื่อใช้เป็นหลักฐาน"',
-          warning: "ห้ามประท้วงปากเปล่า",
-          list: [
-            <>
-              แจ้งกองอำนวยการ <strong>ทันที</strong> ที่จบเกมหรือช่วงพักเกม
-            </>,
-            "คณะกรรมการกลางจะพิจารณาคลิปตามเกณฑ์ข้อ 7",
-            "ผลโหวตถือเป็นที่สิ้นสุด (Final Decision)",
+          title: "ข้อ 8: การประท้วงและการตัดสิน (Protest)",
+          sub81: "8.1 การรวบรวมหลักฐานและยื่นประท้วง",
+          desc81_intro:
+            "เนื่องจากรายการนี้ไม่มีกรรมการตัดสินประจำสนาม (Self-Judging) หากคู่แข่งขันมีความสงสัยในคุณสมบัติหรือฝีมือของฝ่ายตรงข้าม ท่านจะต้องปฏิบัติดังนี้:",
+          desc81_list: [
+            {
+              head: "บันทึกหลักฐาน:",
+              text: 'ผู้ประท้วงต้องทำการ "บันทึกวิดีโอ (Record Video)" การแข่งขันในแมตช์นั้นๆ ด้วยตนเอง เพื่อใช้เป็นหลักฐานยืนยัน',
+            },
+            {
+              head: "การแจ้งเหตุ:",
+              text: "ให้นำหลักฐานคลิปวิดีโอมาแจ้งต่อ กองอำนวยการ (Central Committee) ทันทีที่จบการแข่งขัน หรือในช่วงพักเกม",
+            },
           ],
+          warning: "ห้ามประท้วงปากเปล่าโดยไม่มีหลักฐาน",
+          sub82: "8.2 กระบวนการพิจารณา",
+          desc82:
+            "คณะกรรมการกลางจะดำเนินการตรวจสอบตามกระบวนการใน ข้อ 7.2 โดยใช้หลักฐานวิดีโอที่ผู้ประท้วงนำส่ง",
+          sub83: "8.3 คำตัดสิน",
+          desc83:
+            "ผลการตัดสินจะยึดตาม มติเสียงโหวตของคณะกรรมการ (ตามข้อ 7.3) ถือเป็นที่สิ้นสุด (Final Decision) และไม่สามารถโต้แย้งได้",
         },
       },
     },
+    // English Translation (Mirroring the detail level)
     en: {
       updated: "Updated: Jan 2026",
       mainTitle: "Tournament Rules",
@@ -279,10 +306,8 @@ export default function RulesPage() {
           title: "Rule 2: Serving Regulations",
           sub1: "2.1 Level S",
           desc1: "Standard BWF serving rules apply.",
-          // ✅ ปรับแก้: เพิ่มเว้นวรรค
           sub2: "2.2 Level Baby, BG-, N, BG(men/mixs), Single(NB/N)",
           warningTitle: "⚠️ Important Restriction",
-          // ✅ ปรับแก้: โครงสร้างข้อมูลแบบแยก Icon/Text
           warningList: [
             {
               icon: "✅",
@@ -411,44 +436,68 @@ export default function RulesPage() {
         },
         r7: {
           title: "Rule 7: Skill Verification",
-          desc: (
-            <>
-              Verified against <strong>Moodeng Cup Model</strong> & Self-Eval
-              video (Anti-Sandbagging / Over Model).
-            </>
-          ),
-          voteTitle: "🗳️ Committee Voting & Penalty",
-          voteCards: [
+          sub71: "7.1 Judgment Criteria",
+          desc71:
+            "Skill assessment follows the Moodeng Cup Model standard to ensure maximum fairness.",
+          sub72: "7.2 Verification Process",
+          desc72_intro:
+            "The committee will compare actual match video (from staff or protesters) against two main factors:",
+          desc72_list: [
             {
-              count: "3 Votes",
-              title: "Unanimous",
-              action: "Disqualified (No Refund)",
+              head: "Vs. Self-Evaluation:",
+              text: "To check for Sandbagging (playing significantly better than the self-eval clip).",
             },
             {
-              count: "2 Votes",
-              title: "Majority",
-              action: "Forfeit Match (0-21 / Can play next)",
+              head: "Vs. Model:",
+              text: "To check if the skill level clearly exceeds the category limit (Over Model).",
+            },
+          ],
+          sub73: "7.3 Voting & Penalty",
+          voteCards: [
+            {
+              count: "3 Votes (Unanimous)",
+              title: "Clearly Violation",
+              description:
+                "❌ Disqualified from tournament\n(All results void / No Refund)",
+              color: "red",
+            },
+            {
+              count: "2 Votes (Majority)",
+              title: "Incident Violation",
+              description:
+                "🟠 Forfeit Match Only\nOpponent wins 21-0, 21-0 (3 pts)\n(Can play remaining matches)",
+              color: "orange",
             },
             {
               count: "0-1 Vote",
               title: "Insufficient",
-              action: "Clean (Score stands)",
+              description: "🟢 Clean\nResult stands as played.",
+              color: "green",
             },
           ],
           note: "*Decision by 3 Central Committee members.",
         },
         r8: {
-          title: "Rule 8: Protest",
-          evidenceTitle: "Required Evidence",
-          evidenceDesc: '"You MUST record video yourself as evidence."',
-          warning: "Verbal protests are NOT accepted.",
-          list: [
-            <>
-              Report to HQ <strong>IMMEDIATELY</strong> after match/interval.
-            </>,
-            "Committee will review based on Rule 7 criteria.",
-            "Voting result is Final.",
+          title: "Rule 8: Protest & Dispute Resolution",
+          sub81: "8.1 Evidence & Filing",
+          desc81_intro:
+            "Since this is a Self-Judging tournament, if you suspect an opponent's qualification:",
+          desc81_list: [
+            {
+              head: "Record Evidence:",
+              text: 'You MUST "Record Video" of the match yourself.',
+            },
+            {
+              head: "Report:",
+              text: "Submit video to Central Committee IMMEDIATELY after match or during interval.",
+            },
           ],
+          warning: "Verbal protests without evidence are NOT accepted.",
+          sub82: "8.2 Review Process",
+          desc82:
+            "Committee will review based on Rule 7.2 criteria using the submitted video.",
+          sub83: "8.3 Decision",
+          desc83: "Voting result is Final Decision and cannot be appealed.",
         },
       },
     },
@@ -517,13 +566,11 @@ export default function RulesPage() {
             <p className="text-slate-600">{s.r2.desc1}</p>
           </div>
           <div>
-            {/* ✅ ปรับ: ใช้ break-words เพื่อป้องกันชื่อรุ่นยาวๆ ดัน Layout พัง */}
             <span className="font-semibold text-indigo-700 block mb-2 text-base break-words">
               {s.r2.sub2}
             </span>
             <HighlightBox type="warning" title={s.r2.warningTitle}>
               <ul className="space-y-2 list-none">
-                {/* ✅ ปรับ: Render แบบแยก Icon (flex-shrink-0) กับ Text (flex-1) */}
                 {s.r2.warningList.map((item, i) => (
                   <li key={i} className="flex gap-3 items-start">
                     <span className="shrink-0 mt-0.5">{item.icon}</span>
@@ -556,7 +603,6 @@ export default function RulesPage() {
 
       {/* ข้อ 5 */}
       <RuleSection title={s.r5.title} icon="📊">
-        {/* 5.1 Group Stage */}
         <div className="mb-8">
           <h4 className="font-semibold text-slate-800 bg-slate-50 px-3 py-2 rounded-lg inline-block mb-4 border border-slate-100">
             {s.r5.groupTitle}
@@ -571,7 +617,6 @@ export default function RulesPage() {
               </span>
             </div>
 
-            {/* Points Badge */}
             <div className="grid grid-cols-3 gap-3 text-center text-sm font-medium">
               <div className="bg-emerald-50 text-emerald-700 py-2 rounded-lg border border-emerald-100">
                 {s.r5.points.win} <br />{" "}
@@ -587,7 +632,6 @@ export default function RulesPage() {
               </div>
             </div>
 
-            {/* Team Bye Logic */}
             <HighlightBox type="info" title={s.r5.byeTitle}>
               <div className="flex flex-col gap-1 text-sm">{s.r5.byeDesc}</div>
             </HighlightBox>
@@ -599,7 +643,7 @@ export default function RulesPage() {
           </div>
         </div>
 
-        {/* 5.2 Knockout Classification */}
+        {/* 5.2 Knockout */}
         <div className="mb-8">
           <h4 className="font-semibold text-slate-800 bg-slate-50 px-3 py-2 rounded-lg inline-block mb-4 border border-slate-100">
             {s.r5.koTitle}
@@ -641,7 +685,6 @@ export default function RulesPage() {
           </div>
         </div>
 
-        {/* 5.3 & 5.4 Knockout Rules */}
         <div>
           <h4 className="font-semibold text-slate-800 bg-slate-50 px-3 py-2 rounded-lg inline-block mb-4 border border-slate-100">
             {s.r5.koRulesTitle}
@@ -681,46 +724,100 @@ export default function RulesPage() {
         </div>
       </RuleSection>
 
-      {/* ข้อ 7 */}
+      {/* ข้อ 7 (Detailed) */}
       <RuleSection title={s.r7.title} icon="🕵️‍♂️" id="skill-verify">
-        <p className="mb-4 text-slate-600">{s.r7.desc}</p>
-
-        <div className="bg-slate-50/50 rounded-2xl p-5 border border-slate-200">
-          <h4 className="font-semibold text-center text-slate-700 mb-4 text-sm bg-white inline-block px-4 py-1 rounded-full border border-slate-100 shadow-sm mx-auto block w-fit">
-            {s.r7.voteTitle}
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <VoteCard {...s.r7.voteCards[0]} color="red" />
-            <VoteCard {...s.r7.voteCards[1]} color="orange" />
-            <VoteCard {...s.r7.voteCards[2]} color="green" />
+        <div className="space-y-6">
+          {/* 7.1 */}
+          <div>
+            <h4 className="font-bold text-indigo-700 border-b border-indigo-50 pb-1 mb-2">
+              {s.r7.sub71}
+            </h4>
+            <p className="text-slate-600">{s.r7.desc71}</p>
           </div>
-          <p className="text-[10px] text-center text-slate-400 mt-3 font-light">
-            {s.r7.note}
-          </p>
+
+          {/* 7.2 */}
+          <div>
+            <h4 className="font-bold text-indigo-700 border-b border-indigo-50 pb-1 mb-2">
+              {s.r7.sub72}
+            </h4>
+            <p className="mb-3 text-slate-600">{s.r7.desc72_intro}</p>
+            <ul className="space-y-2">
+              {s.r7.desc72_list.map((item, i) => (
+                <li
+                  key={i}
+                  className="flex flex-col sm:flex-row gap-1 sm:gap-2"
+                >
+                  <strong className="text-slate-800 whitespace-nowrap">
+                    • {item.head}
+                  </strong>
+                  <span className="text-slate-600">{item.text}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* 7.3 */}
+          <div className="bg-slate-50/50 rounded-2xl p-5 border border-slate-200">
+            <h4 className="font-bold text-center text-slate-700 mb-4 text-sm bg-white inline-block px-4 py-1 rounded-full border border-slate-100 shadow-sm mx-auto block w-fit">
+              {s.r7.sub73}
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <VoteCard {...s.r7.voteCards[0]} color="red" />
+              <VoteCard {...s.r7.voteCards[1]} color="orange" />
+              <VoteCard {...s.r7.voteCards[2]} color="green" />
+            </div>
+            <p className="text-[10px] text-center text-slate-400 mt-3 font-light">
+              {s.r7.note}
+            </p>
+          </div>
         </div>
       </RuleSection>
 
-      {/* ข้อ 8 */}
+      {/* ข้อ 8 (Detailed) */}
       <RuleSection title={s.r8.title} icon="📹">
-        <div className="flex flex-col md:flex-row gap-5 items-center">
-          <div className="w-full md:w-1/3 bg-indigo-50 p-5 rounded-2xl border border-indigo-100 text-center shrink-0">
-            <span className="text-3xl block mb-2">🎥</span>
-            <h4 className="font-bold text-indigo-900 text-sm mb-1">
-              {s.r8.evidenceTitle}
+        <div className="space-y-6">
+          {/* 8.1 */}
+          <div>
+            <h4 className="font-bold text-indigo-700 border-b border-indigo-50 pb-1 mb-2">
+              {s.r8.sub81}
             </h4>
-            <p className="text-xs text-indigo-700 leading-relaxed mb-2">
-              {s.r8.evidenceDesc}
-            </p>
-            <span className="inline-block bg-white text-[10px] text-indigo-400 px-2 py-0.5 rounded border border-indigo-100">
-              {s.r8.warning}
-            </span>
+            <p className="mb-3 text-slate-600">{s.r8.desc81_intro}</p>
+            <ul className="space-y-3 mb-3 pl-2">
+              {s.r8.desc81_list.map((item, i) => (
+                <li key={i} className="flex gap-3">
+                  <div className="bg-indigo-50 text-indigo-600 font-bold w-6 h-6 rounded flex items-center justify-center shrink-0 text-xs">
+                    {i + 1}
+                  </div>
+                  <div>
+                    <strong className="block text-slate-800 text-sm">
+                      {item.head}
+                    </strong>
+                    <span className="text-slate-600 text-sm">{item.text}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="bg-rose-50 border border-rose-100 text-rose-800 px-3 py-2 rounded-lg text-xs font-semibold text-center">
+              ⚠️ {s.r8.warning}
+            </div>
           </div>
 
-          <ul className="w-full space-y-3 list-decimal pl-5 text-sm marker:text-slate-400 marker:font-light">
-            {s.r8.list.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ul>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 8.2 */}
+            <div>
+              <h4 className="font-bold text-indigo-700 border-b border-indigo-50 pb-1 mb-2">
+                {s.r8.sub82}
+              </h4>
+              <p className="text-slate-600 text-sm">{s.r8.desc82}</p>
+            </div>
+            {/* 8.3 */}
+            <div>
+              <h4 className="font-bold text-indigo-700 border-b border-indigo-50 pb-1 mb-2">
+                {s.r8.sub83}
+              </h4>
+              <p className="text-slate-600 text-sm">{s.r8.desc83}</p>
+            </div>
+          </div>
         </div>
       </RuleSection>
 
