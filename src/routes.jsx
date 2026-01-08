@@ -31,14 +31,13 @@ import SchedulePage from "./pages/public/Schedule";
 import PublicCourtRunning from "./pages/public/PublicCourtRunning.jsx";
 import PublicKnockoutBracket from "./pages/public/PublicKnockoutBracket.jsx";
 import HallOfFame from "./pages/public/HallOfFame.jsx"; // ✅ [NEW] Import Hall of Fame
-
-
+import RulesPage from "./pages/public/RulesPage.jsx"; // ✅ [NEW] Import Rules
 
 const router = createBrowserRouter([
   // ✅ 1. เพิ่ม Route สำหรับหน้าเลือกงาน (เข้าได้ทุกคน)
   {
     path: "/select",
-    element: <TournamentSelectionPage />
+    element: <TournamentSelectionPage />,
   },
 
   // 🔐 หน้า Login (เข้าได้ทุกคน)
@@ -73,12 +72,15 @@ const router = createBrowserRouter([
           { path: "matches-old", element: <MatchesPage /> },
           { path: "matches", element: <AdminMatchScoring /> },
           { path: "schedule-plan", element: <AdminSchedulePlan /> },
-          {path: "manual-match",element: <ManualMatchPage />,},
+          { path: "manual-match", element: <ManualMatchPage /> },
           { path: "court-running", element: <CourtRunningPage /> },
           { path: "standings", element: <AdminStandingsPage /> },
           { path: "knockout/scoring", element: <KnockoutScoringAdminPage /> },
           { path: "knockout/bracket", element: <KnockoutBracketAdminPage /> },
-          { path: "knockout", element: <Navigate to="knockout/bracket" replace /> },
+          {
+            path: "knockout",
+            element: <Navigate to="knockout/bracket" replace />,
+          },
           { path: "shuttlecocks", element: <ShuttlecockManagementPage /> },
         ],
       },
@@ -93,17 +95,22 @@ const router = createBrowserRouter([
           { path: "schedule", element: <SchedulePage /> },
           { path: "standings", element: <StandingsPage /> },
           { path: "bracket", element: <PublicKnockoutBracket /> },
+          { path: "rules", element: <RulesPage /> }, // ✅ [NEW] Route กติกา
           { path: "hall-of-fame", element: <HallOfFame /> }, // ✅ [NEW] Route ทำเนียบแชมป์
         ],
       },
-    ]
+    ],
   },
   // ====================================================
 
   // ❌ 404
   {
     path: "*",
-    element: <div className="p-6 text-center"><h1>404 - Not Found</h1></div>,
+    element: (
+      <div className="p-6 text-center">
+        <h1>404 - Not Found</h1>
+      </div>
+    ),
   },
 ]);
 

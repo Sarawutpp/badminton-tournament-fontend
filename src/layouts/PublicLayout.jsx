@@ -91,7 +91,7 @@ export default function PublicLayout() {
             <TabLink to="schedule">ตารางแข่ง</TabLink>
             <TabLink to="standings">ตารางคะแนน</TabLink>
             <TabLink to="bracket">สายแข่ง (KO)</TabLink>
-
+            <TabLink to="rules">กติกา 📜</TabLink>
             {/* ✅ Comment ซ่อนเมนู Hall of Fame ไว้ก่อน */}
             {/* <TabLink to="hall-of-fame">ทำเนียบแชมป์ 🏆</TabLink> */}
           </div>
