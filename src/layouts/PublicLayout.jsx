@@ -16,7 +16,7 @@ export default function PublicLayout() {
     }
   }, [selectedTournament, navigate]);
 
-  if (!selectedTournament) return null; // ป้องกัน render ก่อน redirect
+  if (!selectedTournament) return null; // ป้องกัน render ก่อน redirect5555
 
   const TabLink = ({ to, children }) => (
     <NavLink
