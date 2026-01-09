@@ -181,51 +181,25 @@ export const API = {
     group = "",
     q = "",
     roundType = "",
-    onlyFinished = false,
+    status = "", // ✅ รับค่า status เพิ่ม
   } = {}) => {
     const qs = new URLSearchParams();
+
+    // ✅ ส่ง page และ pageSize ไปให้ Server ตัดแบ่งข้อมูล
+    qs.set("page", page);
+    qs.set("pageSize", pageSize);
+
     if (handLevel) qs.set("handLevel", handLevel);
     if (group) qs.set("group", group);
     if (roundType) qs.set("roundType", roundType);
-    qs.set("pageSize", 10000);
+    if (q) qs.set("q", q);
 
-    const base = await request(
-      `/matches${qs.toString() ? `?${qs.toString()}` : ""}`
-    );
+    // ✅ ส่ง status ไปให้ Server กรอง (เช่น "scheduled,in-progress" หรือ "finished")
+    if (status) qs.set("status", status);
 
-    const all = Array.isArray(base?.items)
-      ? base.items
-      : Array.isArray(base)
-      ? base
-      : [];
-
-    let items = all;
-
-    if (onlyFinished) {
-      items = items.filter((m) => m.status === "finished");
-    }
-
-    if (q) {
-      const keyword = q.toLowerCase();
-      items = items.filter((m) => {
-        const id =
-          (m.matchId && String(m.matchId).toLowerCase()) ||
-          (m.matchNo && String(m.matchNo).toLowerCase()) ||
-          "";
-        const t1 = (teamName(m.team1) || m.team1Name || "").toLowerCase();
-        const t2 = (teamName(m.team2) || m.team2Name || "").toLowerCase();
-        return (
-          id.includes(keyword) || t1.includes(keyword) || t2.includes(keyword)
-        );
-      });
-    }
-
-    const total = items.length;
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    const pageItems = items.slice(start, end);
-
-    return { items: pageItems, total, page };
+    // ✅ เรียก request ตรงๆ โดยไม่ต้อง fetch มาทั้งหมดแล้ว slice เอง
+    // Server (match.routes.js) รองรับการ return { items, total, page } อยู่แล้ว
+    return request(`/matches?${qs.toString()}`);
   },
 
   reorderMatches: (data) =>

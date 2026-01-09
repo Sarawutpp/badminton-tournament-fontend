@@ -39,10 +39,11 @@ function ShuttleSelectorModal({ isOpen, onClose, onConfirm, loading }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all scale-100">
-        
         {/* Header */}
         <div className="bg-slate-900 px-6 py-4 text-center">
-          <h3 className="text-white text-lg font-bold">🏸 จำนวนลูกแบดที่ใช้?</h3>
+          <h3 className="text-white text-lg font-bold">
+            🏸 จำนวนลูกแบดที่ใช้?
+          </h3>
           <p className="text-slate-400 text-xs mt-1">
             ระบุจำนวนลูกเพื่อคำนวณคูปอง (หารคนละครึ่ง)
           </p>
@@ -61,15 +62,15 @@ function ShuttleSelectorModal({ isOpen, onClose, onConfirm, loading }) {
                 {num}
               </button>
             ))}
-             {/* ปุ่ม 0 หรือ Custom */}
-             <button
-                onClick={() => onConfirm(0)}
-                disabled={loading}
-                className="aspect-square rounded-2xl bg-slate-50 border-2 border-slate-100 text-sm font-semibold text-slate-400 hover:border-slate-300 hover:text-slate-600 transition-all flex flex-col items-center justify-center"
-              >
-                <span>ไม่ใช้</span>
-                <span className="text-[10px]">(0)</span>
-              </button>
+            {/* ปุ่ม 0 หรือ Custom */}
+            <button
+              onClick={() => onConfirm(0)}
+              disabled={loading}
+              className="aspect-square rounded-2xl bg-slate-50 border-2 border-slate-100 text-sm font-semibold text-slate-400 hover:border-slate-300 hover:text-slate-600 transition-all flex flex-col items-center justify-center"
+            >
+              <span>ไม่ใช้</span>
+              <span className="text-[10px]">(0)</span>
+            </button>
           </div>
 
           {/* Cancel Button */}
@@ -81,11 +82,13 @@ function ShuttleSelectorModal({ isOpen, onClose, onConfirm, loading }) {
             ยกเลิก
           </button>
         </div>
-        
+
         {/* Loading Overlay */}
         {loading && (
           <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-            <span className="text-indigo-600 font-bold animate-pulse">กำลังบันทึก...</span>
+            <span className="text-indigo-600 font-bold animate-pulse">
+              กำลังบันทึก...
+            </span>
           </div>
         )}
       </div>
@@ -99,9 +102,10 @@ export default function AdminMatchScoringPage() {
 
   const settings = selectedTournament?.settings || {};
   const CONFIG_MAX_SCORE = settings.maxScore || 21;
-  const CONFIG_CATEGORIES = settings.categories && settings.categories.length > 0
-    ? settings.categories
-    : HAND_LEVEL_OPTIONS.map(h => h.value);
+  const CONFIG_CATEGORIES =
+    settings.categories && settings.categories.length > 0
+      ? settings.categories
+      : HAND_LEVEL_OPTIONS.map((h) => h.value);
 
   const [rows, setRows] = useState([]);
   const [err, setErr] = useState("");
@@ -120,10 +124,17 @@ export default function AdminMatchScoringPage() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
 
+  // ✅ [MODIFIED] แก้ไขฟังก์ชัน load ให้ส่ง status ตาม activeTab
   async function load(p = 1) {
     setLoading(true);
     setErr("");
     try {
+      // กำหนดค่า status ที่จะส่งไป API
+      // ถ้าอยู่แท็บ pending ให้ขอ scheduled,in-progress
+      // ถ้าอยู่แท็บ finished ให้ขอ finished
+      const statusParam =
+        activeTab === "pending" ? "scheduled,in-progress" : "finished";
+
       const res = await API.listMatchesForScoring({
         page: p,
         pageSize,
@@ -131,9 +142,14 @@ export default function AdminMatchScoringPage() {
         group: filters.group || undefined,
         q: filters.q || undefined,
         roundType: filters.roundType || undefined,
+        status: statusParam, // ส่งค่า status ไปให้ Server กรอง
       });
 
-      const items = Array.isArray(res?.items) ? res.items : Array.isArray(res) ? res : [];
+      const items = Array.isArray(res?.items)
+        ? res.items
+        : Array.isArray(res)
+        ? res
+        : [];
       setRows(items);
       setTotal(Number(res?.total ?? items.length));
       setPage(Number(res?.page ?? p));
@@ -147,19 +163,14 @@ export default function AdminMatchScoringPage() {
     }
   }
 
+  // ✅ [MODIFIED] เพิ่ม activeTab ลงใน dependency array
   useEffect(() => {
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [activeTab]); // เมื่อเปลี่ยนแท็บ ให้โหลดข้อมูลใหม่ทันที
 
-  const displayedRows = rows.filter((r) => {
-    const isFinished = hasScore(r);
-    if (activeTab === "pending") {
-      return !isFinished;
-    } else {
-      return isFinished;
-    }
-  });
+  // ✅ [MODIFIED] ไม่ต้องกรอง Client-side แล้ว ใช้ rows ตรงๆ ได้เลย
+  const displayedRows = rows;
 
   const maxPage = pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
 
@@ -233,9 +244,7 @@ export default function AdminMatchScoringPage() {
               className="border rounded px-2 py-2 w-full text-sm"
               placeholder="ชื่อทีม / Match ID"
               value={filters.q}
-              onChange={(e) =>
-                setFilters((f) => ({ ...f, q: e.target.value }))
-              }
+              onChange={(e) => setFilters((f) => ({ ...f, q: e.target.value }))}
             />
           </div>
         </div>
@@ -345,7 +354,7 @@ export default function AdminMatchScoringPage() {
             ) : (
               <tr>
                 <td colSpan={10} className="p-12 text-center text-slate-500">
-                   ไม่พบข้อมูลในแท็บนี้
+                  ไม่พบข้อมูลในแท็บนี้
                 </td>
               </tr>
             )}
@@ -356,7 +365,7 @@ export default function AdminMatchScoringPage() {
       {/* Pagination */}
       <div className="flex items-center justify-between text-xs md:text-sm text-slate-600 pt-2">
         <div>
-          รวม {total} • หน้า {page}/{maxPage} 
+          รวม {total} • หน้า {page}/{maxPage}
           <span className="hidden md:inline ml-2 text-slate-400 text-xs">
             (แสดง {displayedRows.length} รายการในแท็บนี้)
           </span>
@@ -406,19 +415,19 @@ function useMatchScoring(m, loadData, configMaxScore) {
   let maxSets = 3; // Default (BO3)
 
   if (gamesToWin === 1) {
-      maxSets = 1; // Mini Tournament
+    maxSets = 1; // Mini Tournament
   } else if (isGroup) {
-      maxSets = 2; // Standard Group (BO2)
+    maxSets = 2; // Standard Group (BO2)
   }
-  
-  const maxScore = configMaxScore || 21; 
+
+  const maxScore = configMaxScore || 21;
 
   const alreadyHasScore = hasScore(m);
   const [isEditing, setIsEditing] = useState(
     m.status === "finished" && !alreadyHasScore
   );
   const [saving, setSaving] = useState(false);
-  
+
   // [NEW] State Control Modal
   const [showShuttleModal, setShowShuttleModal] = useState(false);
 
@@ -435,7 +444,7 @@ function useMatchScoring(m, loadData, configMaxScore) {
     let v = parseInt(value, 10);
     if (Number.isNaN(v)) v = 0;
     if (v < 0) v = 0;
-    
+
     const arr = [...localSets];
     arr[index] = { ...arr[index], [team]: v };
     setLocalSets(arr);
@@ -446,29 +455,28 @@ function useMatchScoring(m, loadData, configMaxScore) {
     let s = m.sets?.map((set) => ({ t1: set.t1 || 0, t2: set.t2 || 0 })) || [];
     while (s.length < 3) s.push({ t1: 0, t2: 0 });
     setLocalSets(s);
-    
-    const hasScore = (m.sets && m.sets.length > 0) || (m.score1 > 0 || m.score2 > 0);
+
+    const hasScore =
+      (m.sets && m.sets.length > 0) || m.score1 > 0 || m.score2 > 0;
     if (m.status === "finished" && !hasScore) {
-       setIsEditing(true);
+      setIsEditing(true);
     }
   }, [m]);
 
   // [NEW] 1. Trigger: กดปุ่มบันทึก -> ตรวจสอบข้อมูลเบื้องต้น -> เปิด Modal
   function triggerSave() {
     // Check Validation
-    const payloadSets = localSets
-        .slice(0, maxSets)
-        .filter((s) => {
-           const t1 = parseInt(s.t1);
-           const t2 = parseInt(s.t2);
-           return !isNaN(t1) && !isNaN(t2); 
-        });
+    const payloadSets = localSets.slice(0, maxSets).filter((s) => {
+      const t1 = parseInt(s.t1);
+      const t2 = parseInt(s.t2);
+      return !isNaN(t1) && !isNaN(t2);
+    });
 
     if (payloadSets.length === 0) {
       alert("กรุณากรอกคะแนนอย่างน้อย 1 เซ็ต");
       return;
     }
-    
+
     // เปิด Modal ถามจำนวนลูกแบด
     setShowShuttleModal(true);
   }
@@ -477,13 +485,11 @@ function useMatchScoring(m, loadData, configMaxScore) {
   async function confirmSave(shuttleCount) {
     setSaving(true);
     try {
-      const payloadSets = localSets
-        .slice(0, maxSets)
-        .filter((s) => {
-           const t1 = parseInt(s.t1);
-           const t2 = parseInt(s.t2);
-           return !isNaN(t1) && !isNaN(t2); 
-        });
+      const payloadSets = localSets.slice(0, maxSets).filter((s) => {
+        const t1 = parseInt(s.t1);
+        const t2 = parseInt(s.t2);
+        return !isNaN(t1) && !isNaN(t2);
+      });
 
       await API.updateScore(m._id, {
         sets: payloadSets,
@@ -582,7 +588,10 @@ function MatchScoreCardMobile({ m, loadData, configMaxScore }) {
       <div className="flex justify-between items-start mb-3">
         <div>
           <div className="text-xs font-bold text-indigo-600">
-            #{m.matchNo} <span className="text-slate-400 font-normal">| {m.court || '-'}</span>
+            #{m.matchNo}{" "}
+            <span className="text-slate-400 font-normal">
+              | {m.court || "-"}
+            </span>
           </div>
         </div>
         <div>{statusBadge}</div>
@@ -614,13 +623,16 @@ function MatchScoreCardMobile({ m, loadData, configMaxScore }) {
       {/* Inputs */}
       <div className="bg-slate-50 rounded-lg p-3 mb-4">
         <div className="flex justify-between text-[10px] text-slate-400 mb-2 px-1">
-            <span>Team 1</span>
-            <span>Team 2</span>
+          <span>Team 1</span>
+          <span>Team 2</span>
         </div>
         {[0, 1, 2].map((i) => {
-          if (i >= maxSets) return null; 
+          if (i >= maxSets) return null;
           return (
-            <div key={i} className="flex items-center justify-between mb-2 last:mb-0">
+            <div
+              key={i}
+              className="flex items-center justify-between mb-2 last:mb-0"
+            >
               <input
                 type="number"
                 pattern="\d*"
@@ -630,7 +642,9 @@ function MatchScoreCardMobile({ m, loadData, configMaxScore }) {
                 disabled={!canEdit}
                 placeholder="0"
               />
-              <span className="text-xs font-bold text-slate-400">Set {i + 1}</span>
+              <span className="text-xs font-bold text-slate-400">
+                Set {i + 1}
+              </span>
               <input
                 type="number"
                 pattern="\d*"
@@ -681,7 +695,7 @@ function MatchScoreCardMobile({ m, loadData, configMaxScore }) {
       </div>
 
       {/* [NEW] Render Modal */}
-      <ShuttleSelectorModal 
+      <ShuttleSelectorModal
         isOpen={showShuttleModal}
         onClose={() => setShowShuttleModal(false)}
         onConfirm={confirmSave}
@@ -765,7 +779,11 @@ function MatchScoreRowDesktop({ m, loadData, configMaxScore }) {
         </td>
         <td className="p-2 text-center">
           <div className="text-xs font-medium text-slate-800 mb-1">
-            {m.status === "finished" ? "จบแล้ว" : m.status === "in-progress" ? "กำลังแข่ง" : "รอ"}
+            {m.status === "finished"
+              ? "จบแล้ว"
+              : m.status === "in-progress"
+              ? "กำลังแข่ง"
+              : "รอ"}
           </div>
           {statusBadge}
         </td>
@@ -838,7 +856,7 @@ function MatchScoreRowDesktop({ m, loadData, configMaxScore }) {
       </tr>
 
       {/* [NEW] Render Modal */}
-      <ShuttleSelectorModal 
+      <ShuttleSelectorModal
         isOpen={showShuttleModal}
         onClose={() => setShowShuttleModal(false)}
         onConfirm={confirmSave}
