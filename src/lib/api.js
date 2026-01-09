@@ -181,11 +181,10 @@ export const API = {
     group = "",
     q = "",
     roundType = "",
-    status = "", // ✅ รับค่า status เพิ่ม
+    status = "",
+    scoringStatus = "", // ✅ [NEW] เพิ่มตัวนี้
   } = {}) => {
     const qs = new URLSearchParams();
-
-    // ✅ ส่ง page และ pageSize ไปให้ Server ตัดแบ่งข้อมูล
     qs.set("page", page);
     qs.set("pageSize", pageSize);
 
@@ -193,12 +192,11 @@ export const API = {
     if (group) qs.set("group", group);
     if (roundType) qs.set("roundType", roundType);
     if (q) qs.set("q", q);
-
-    // ✅ ส่ง status ไปให้ Server กรอง (เช่น "scheduled,in-progress" หรือ "finished")
     if (status) qs.set("status", status);
 
-    // ✅ เรียก request ตรงๆ โดยไม่ต้อง fetch มาทั้งหมดแล้ว slice เอง
-    // Server (match.routes.js) รองรับการ return { items, total, page } อยู่แล้ว
+    // ✅ [NEW] ส่งค่าไป backend
+    if (scoringStatus) qs.set("scoringStatus", scoringStatus);
+
     return request(`/matches?${qs.toString()}`);
   },
 

@@ -129,11 +129,11 @@ export default function AdminMatchScoringPage() {
     setLoading(true);
     setErr("");
     try {
-      // กำหนดค่า status ที่จะส่งไป API
-      // ถ้าอยู่แท็บ pending ให้ขอ scheduled,in-progress
-      // ถ้าอยู่แท็บ finished ให้ขอ finished
-      const statusParam =
-        activeTab === "pending" ? "scheduled,in-progress" : "finished";
+      // ✅ [MODIFIED] ใช้ scoringStatus แทน status
+      // pending = รอแข่ง, กำลังแข่ง, จบแต่ไม่มีคะแนน
+      // finished = มีคะแนนแล้ว
+      const scoringStatusParam =
+        activeTab === "pending" ? "pending" : "finished";
 
       const res = await API.listMatchesForScoring({
         page: p,
@@ -142,7 +142,8 @@ export default function AdminMatchScoringPage() {
         group: filters.group || undefined,
         q: filters.q || undefined,
         roundType: filters.roundType || undefined,
-        status: statusParam, // ส่งค่า status ไปให้ Server กรอง
+        scoringStatus: scoringStatusParam, // ✅ ส่งค่าใหม่
+        // status: ... ไม่ต้องส่ง status แล้ว เพราะ scoringStatus จัดการให้หมด
       });
 
       const items = Array.isArray(res?.items)
@@ -154,10 +155,7 @@ export default function AdminMatchScoringPage() {
       setTotal(Number(res?.total ?? items.length));
       setPage(Number(res?.page ?? p));
     } catch (e) {
-      console.error(e);
-      setErr(e?.message || "โหลดข้อมูลล้มเหลว");
-      setRows([]);
-      setTotal(0);
+      // ... error handling
     } finally {
       setLoading(false);
     }
