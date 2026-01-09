@@ -89,6 +89,7 @@ const TeamHistoryModal = ({ team, groupName, handLevel, onClose }) => {
   useEffect(() => {
     const fetchMatches = async () => {
       try {
+        // ดึงแมตช์ที่จบแล้วทั้งหมด
         const res = await API.listSchedule({
           handLevel: handLevel,
           pageSize: 200,
@@ -97,6 +98,7 @@ const TeamHistoryModal = ({ team, groupName, handLevel, onClose }) => {
 
         const allMatches = res.items || [];
 
+        // กรองเฉพาะแมตช์ของทีมนี้
         const myMatches = allMatches.filter(
           (m) =>
             m.team1?._id === team._id ||
@@ -125,7 +127,7 @@ const TeamHistoryModal = ({ team, groupName, handLevel, onClose }) => {
   const quotaSingle = shuttleConfig.quotaSingle ?? 5;
   const quotaDouble = shuttleConfig.quotaDouble ?? 10;
 
-  // เช็คว่าเป็นประเภทเดี่ยวหรือไม่ (ดูจากจำนวนชื่อผู้เล่น หรือชื่อรุ่น)
+  // เช็คว่าเป็นประเภทเดี่ยวหรือไม่
   const isSingle =
     (team.players || []).length === 1 ||
     /single|เดี่ยว|CN|SN|NB/i.test(handLevel || "");
@@ -176,57 +178,75 @@ const TeamHistoryModal = ({ team, groupName, handLevel, onClose }) => {
                   match.team1?._id === team._id || match.team1 === team._id;
                 const opponent = isTeam1 ? match.team2 : match.team1;
 
-                const myScore = isTeam1 ? match.score1 : match.score2;
-                const oppScore = isTeam1 ? match.score2 : match.score1;
+                // =========================================================
+                // 🚩 แก้ไข Logic การตัดสินผล (ใช้นับจำนวนเซ็ต)
+                // =========================================================
+                let mySets = 0;
+                let oppSets = 0;
+                const setsData = [];
 
-                let isWin = false;
-                let isDraw = false;
-
-                if (match.winner) {
-                  isWin =
-                    (isTeam1 && match.winner === match.team1?._id) ||
-                    (!isTeam1 && match.winner === match.team2?._id);
-                } else {
-                  isWin = myScore > oppScore;
-                  isDraw = myScore === oppScore;
-                }
-
-                // ... (Logic การแสดง Set เหมือนเดิม) ...
-                const sets = [];
-                const p = (v) => parseInt(v || 0, 10);
+                // 1. แปลงข้อมูลเซ็ตให้อยู่ในรูป Array มาตรฐาน
                 if (Array.isArray(match.sets) && match.sets.length > 0) {
-                  match.sets.forEach((s, i) => {
-                    if (s.t1 > 0 || s.t2 > 0) {
-                      sets.push({ label: `${i + 1}`, t1: s.t1, t2: s.t2 });
-                    }
-                  });
+                  match.sets.forEach((s) => setsData.push(s));
                 } else {
-                  // Fallback legacy sets logic...
+                  // รองรับ Legacy Data
+                  const p = (v) => parseInt(v || 0, 10);
                   if (p(match.set1Score1) + p(match.set1Score2) > 0)
-                    sets.push({
-                      label: "1",
+                    setsData.push({
                       t1: match.set1Score1,
                       t2: match.set1Score2,
                     });
                   if (p(match.set2Score1) + p(match.set2Score2) > 0)
-                    sets.push({
-                      label: "2",
+                    setsData.push({
                       t1: match.set2Score1,
                       t2: match.set2Score2,
                     });
                   if (p(match.set3Score1) + p(match.set3Score2) > 0)
-                    sets.push({
-                      label: "3",
+                    setsData.push({
                       t1: match.set3Score1,
                       t2: match.set3Score2,
                     });
                 }
+
+                // 2. นับจำนวนเซ็ตที่ชนะ
+                setsData.forEach((s) => {
+                  const t1 = Number(s.t1 || 0);
+                  const t2 = Number(s.t2 || 0);
+                  if (t1 > t2) {
+                    if (isTeam1) mySets++;
+                    else oppSets++;
+                  } else if (t2 > t1) {
+                    if (!isTeam1) mySets++;
+                    else oppSets++;
+                  }
+                });
+
+                // 3. ตัดสินผลแพ้ชนะ
+                let isWin = false;
+                let isDraw = false;
+
+                if (match.winner) {
+                  // กรณีมี Winner ชัดเจนจากระบบ
+                  isWin =
+                    (isTeam1 &&
+                      String(match.winner) ===
+                        String(match.team1?._id || match.team1)) ||
+                    (!isTeam1 &&
+                      String(match.winner) ===
+                        String(match.team2?._id || match.team2));
+                } else {
+                  // กรณีไม่มี Winner (เช่น รอบแบ่งกลุ่ม / เสมอ) -> ดูจากเซ็ต
+                  if (mySets > oppSets) isWin = true;
+                  else if (mySets === oppSets) isDraw = true;
+                }
+                // =========================================================
 
                 return (
                   <div
                     key={match._id}
                     className="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-row items-stretch gap-3"
                   >
+                    {/* แถบสีด้านซ้าย */}
                     <div
                       className={`w-1.5 rounded-full self-stretch ${
                         isWin
@@ -238,6 +258,7 @@ const TeamHistoryModal = ({ team, groupName, handLevel, onClose }) => {
                     ></div>
 
                     <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                      {/* Header การ์ด */}
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex-1 min-w-0 pr-2">
                           <div className="text-[10px] text-slate-400 uppercase tracking-wide font-medium">
@@ -260,19 +281,20 @@ const TeamHistoryModal = ({ team, groupName, handLevel, onClose }) => {
                         </div>
                       </div>
 
+                      {/* รายละเอียดเซ็ต */}
                       <div className="space-y-1 border-t border-slate-100 pt-2 mt-auto">
-                        {sets.length > 0 ? (
-                          sets.map((s, idx) => {
+                        {setsData.length > 0 ? (
+                          setsData.map((s, idx) => {
                             const mySet = isTeam1 ? s.t1 : s.t2;
                             const oppSet = isTeam1 ? s.t2 : s.t1;
-                            const iWonSet = mySet > oppSet;
+                            const iWonSet = Number(mySet) > Number(oppSet);
                             return (
                               <div
                                 key={idx}
                                 className="flex justify-between items-center text-xs"
                               >
                                 <span className="text-slate-400 font-medium">
-                                  Set {s.label}
+                                  Set {idx + 1}
                                 </span>
                                 <div className="flex items-center gap-1 font-mono">
                                   <span
@@ -314,7 +336,6 @@ const TeamHistoryModal = ({ team, groupName, handLevel, onClose }) => {
 
         {/* Footer: Coupon Info + Close Button */}
         <div className="p-4 bg-white border-t shrink-0 space-y-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] relative z-10">
-          {/* ✅ ส่วนแสดงผลคูปอง */}
           <div className="bg-orange-50 border border-orange-100 rounded-xl p-3 flex justify-between items-center text-sm shadow-sm">
             <div className="flex flex-col">
               <div className="flex items-center gap-1">
