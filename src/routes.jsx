@@ -32,7 +32,7 @@ import PublicCourtRunning from "./pages/public/PublicCourtRunning.jsx";
 import PublicKnockoutBracket from "./pages/public/PublicKnockoutBracket.jsx";
 import HallOfFame from "./pages/public/HallOfFame.jsx"; // ✅ [NEW] Import Hall of Fame
 import RulesPage from "./pages/public/RulesPage.jsx"; // ✅ [NEW] Import Rules
-
+import LuckyDrawPage from "./pages/public/LuckyDrawPage.jsx";
 const router = createBrowserRouter([
   // ✅ 1. เพิ่ม Route สำหรับหน้าเลือกงาน (เข้าได้ทุกคน)
   {
@@ -96,6 +96,7 @@ const router = createBrowserRouter([
           { path: "standings", element: <StandingsPage /> },
           { path: "bracket", element: <PublicKnockoutBracket /> },
           { path: "rules", element: <RulesPage /> }, // ✅ [NEW] Route กติกา
+          { path: "lucky-draw", element: <LuckyDrawPage /> },
           { path: "hall-of-fame", element: <HallOfFame /> }, // ✅ [NEW] Route ทำเนียบแชมป์
         ],
       },
