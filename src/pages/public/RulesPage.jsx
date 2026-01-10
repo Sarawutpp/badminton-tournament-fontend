@@ -217,7 +217,6 @@ export default function RulesPage() {
         },
         r7: {
           title: "ข้อ 7: การตรวจสอบมือ (Skill Level Verification)",
-          // รายละเอียดตาม Text ที่ให้มา
           sub71: "7.1 เกณฑ์การตัดสิน",
           desc71:
             "การพิจารณาความสามารถของนักกีฬาจะยึดตามมาตรฐานกลางของรายการ (Moodeng Cup Model) เป็นหลัก เพื่อให้เกิดความยุติธรรมสูงสุด",
@@ -283,9 +282,34 @@ export default function RulesPage() {
           desc83:
             "ผลการตัดสินจะยึดตาม มติเสียงโหวตของคณะกรรมการ (ตามข้อ 7.3) ถือเป็นที่สิ้นสุด (Final Decision) และไม่สามารถโต้แย้งได้",
         },
+        // --- ADDED RULE 9 ---
+        r9: {
+          title: "ข้อ 9: การเล่นเต็มความสามารถ (Best Effort)",
+          list: [
+            "นักกีฬาต้องลงแข่งขันและเล่นให้เต็มที่ในทุกแมตช์ ไม่ว่าผลแพ้-ชนะจะมีผลต่อการเข้ารอบหรือไม่",
+            "ห้ามตกลงผลการแข่งขันล่วงหน้า หรือเจตนาแกล้งแพ้ (ล็อคสกอร์) เพื่อหวังผลในการเลือกสายแข่งรอบต่อไป",
+          ],
+          penaltyTitle: "⚠️ บทลงโทษร้ายแรง (Severe Penalty)",
+          penaltyDesc: (
+            <>
+              หากทีมงานเห็นว่านักกีฬาเจตนาเล่นไม่เต็มที่ (เช่น ตีทิ้งขว้าง,
+              ไม่รับลูก, ยืนเฉย) เพื่อเจตนาแกล้งแพ้:
+              <br />
+              👉{" "}
+              <span className="font-bold text-rose-800">
+                ปรับแพ้ในแมตช์นั้นทันที
+              </span>{" "}
+              +{" "}
+              <span className="font-bold text-rose-800">
+                ตัดสิทธิ์จากการแข่งขัน
+              </span>{" "}
+              (ไม่คืนเงินค่าสมัคร)
+            </>
+          ),
+        },
       },
     },
-    // English Translation (Mirroring the detail level)
+    // English Translation
     en: {
       updated: "Updated: Jan 2026",
       mainTitle: "Tournament Rules",
@@ -498,6 +522,29 @@ export default function RulesPage() {
             "Committee will review based on Rule 7.2 criteria using the submitted video.",
           sub83: "8.3 Decision",
           desc83: "Voting result is Final Decision and cannot be appealed.",
+        },
+        // --- ADDED RULE 9 (English) ---
+        r9: {
+          title: "Rule 9: Best Effort",
+          list: [
+            "Athletes must play to the best of their ability in every match, regardless of how the result affects qualification standing.",
+            "Match-fixing or intentional losing to manipulate bracket placement is strictly prohibited.",
+          ],
+          penaltyTitle: "⚠️ Severe Penalty",
+          penaltyDesc: (
+            <>
+              If the committee determines a player is intentionally throwing a
+              game (e.g., clearly wasting shots, not receiving serves):
+              <br />
+              👉{" "}
+              <span className="font-bold text-rose-800">
+                Immediate Forfeit
+              </span>{" "}
+              +{" "}
+              <span className="font-bold text-rose-800">Disqualification</span>{" "}
+              (No Refund)
+            </>
+          ),
         },
       },
     },
@@ -818,6 +865,20 @@ export default function RulesPage() {
               <p className="text-slate-600 text-sm">{s.r8.desc83}</p>
             </div>
           </div>
+        </div>
+      </RuleSection>
+
+      {/* --- ข้อ 9 (ADDED NEW SECTION) --- */}
+      <RuleSection title={s.r9.title} icon="💪">
+        <ul className="list-disc pl-5 space-y-3 marker:text-indigo-300">
+          {s.r9.list.map((item, i) => (
+            <li key={i}>{item}</li>
+          ))}
+        </ul>
+        <div className="mt-4">
+          <HighlightBox type="danger" title={s.r9.penaltyTitle}>
+            {s.r9.penaltyDesc}
+          </HighlightBox>
         </div>
       </RuleSection>
 
